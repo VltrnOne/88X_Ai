@@ -1,0 +1,12 @@
+FROM alpine:latest
+
+# Include a tool to list files
+RUN apk add --no-cache tree
+
+# Copy everything as per your build context
+COPY . /scout-agent
+
+# Show files
+RUN tree /scout-agent
+
+CMD ["sh"]

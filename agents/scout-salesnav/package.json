@@ -1,0 +1,13 @@
+{
+    "name": "vltrn-warn-scout",
+    "version": "1.0.0",
+    "description": "VLTRN Public Data Signal Intelligence Agent",
+    "main": "src/index.js",
+    "type": "module",
+    "scripts": { "start": "node src/index.js" },
+    "dependencies": {
+      "express": "^4.19.2",
+      "axios": "^1.7.2",
+      "cheerio": "^1.0.0-rc.12"
+    }
+  }

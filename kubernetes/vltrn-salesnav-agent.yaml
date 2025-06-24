@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vltrn-salesnav-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vltrn-salesnav-agent
+  template:
+    metadata:
+      labels:
+        app: vltrn-salesnav-agent
+    spec:
+      containers:
+      - name: vltrn-salesnav-agent
+        image: docker.io/vltrnone/vltrn-scout-agent:salesnav-final
+        ports:
+        - containerPort: 80
+        env:
+        - name: BRIGHTDATA_BROWSER_ENDPOINT
+          valueFrom:
+            secretKeyRef:
+              name: brightdata-creds
+              key: BROWSER_ENDPOINT
