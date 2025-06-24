@@ -1,0 +1,50 @@
+# .github/workflows/ci.yaml
+
+# This name will appear in the "Actions" tab of your GitHub repository.
+name: VLTRN Agent CI
+
+# This section defines when the workflow will run.
+# on: push: This triggers the workflow on every push to any branch.
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+# This section defines the jobs that will run as part of the workflow.
+jobs:
+  # The 'build-and-test' job. You can name this anything.
+  build-and-test:
+    # 'runs-on: ubuntu-latest' specifies that the job will run on a fresh
+    # virtual machine hosted by GitHub, running the latest version of Ubuntu.
+    runs-on: ubuntu-latest
+
+    # 'steps' are the sequence of tasks that will be executed in the job.
+    steps:
+      # Step 1: Check out the repository's code
+      # This action checks out your repository onto the runner, allowing you to run
+      # scripts or other actions against your code.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Set up Node.js environment
+      # This action sets up a Node.js environment for use in your workflow.
+      # We specify version 20, which matches the agent's environment.
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Step 3: Install dependencies for the scout-salesnav agent
+      # We first change the directory to the specific agent's folder,
+      # then run 'npm install' to download all the packages listed in its package.json.
+      - name: Install dependencies
+        run: |
+          cd agents/scout-salesnav
+          npm install
+
+      # This is a placeholder for future steps.
+      - name: Run linting and tests (to be added)
+        run: echo "Linting and testing steps will be added here."
