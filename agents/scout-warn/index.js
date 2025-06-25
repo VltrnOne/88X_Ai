@@ -1,37 +1,80 @@
-// This agent's mission is to scrape public WARN Act notice websites.
-// It uses axios to make the HTTP request and cheerio to parse the HTML response.
-
 const axios = require('axios');
-const cheerio = require('cheerio');
+const xlsx = require('xlsx');
 
-// The target URL for the California WARN Act notices.
-const TARGET_URL = 'https://edd.ca.gov/en/jobs_and_training/warn-report-for-wia-areas/';
+const TARGET_URL = 'https://edd.ca.gov/siteassets/files/jobs_and_training/warn/warn_report1.xlsx';
 
 /**
- * The main function for the agent's execution.
+ * Takes the raw data from the worksheet and maps it to a clean JSON format.
+ * @param {any[][]} rawData - An array of arrays from the XLSX parser.
+ * @returns {object[]} An array of cleaned layoff event objects.
  */
-async function scrapeWarnNotices() {
-  console.log(`[VLTRN-Scout-WARN] Initializing scrape for: ${TARGET_URL}`);
+function normalizeData(rawData) {
+  const normalizedEvents = [];
+  // From inspection, we know the actual headers are on the second row (index 1).
+  const headers = rawData[1]; 
+  // The actual data starts on the row after the headers.
+  const dataRows = rawData.slice(2); 
 
-  try {
-    // Use axios to perform an HTTP GET request to the target URL.
-    const response = await axios.get(TARGET_URL);
-    const html = response.data;
+  const headerMapping = {
+    'Received\r\nDate': 'receivedDate',
+    'Company': 'companyName',
+    'City/ \r\nCounty': 'location',
+    'No. Of\r\nEmployees': 'employeeCount',
+    'Layoff/\r\nClosure': 'layoffType',
+    'Address': 'address',
+    'Related Industry': 'industry'
+  };
 
-    // Load the HTML content into Cheerio for parsing.
-    const $ = cheerio.load(html);
+  dataRows.forEach(row => {
+    // Skip empty rows
+    if (row.length === 0) return;
 
-    // Placeholder for parsing logic. We will extract data from the HTML here.
-    console.log('[VLTRN-Scout-WARN] Successfully fetched page content. Parsing logic to be implemented.');
+    const event = {};
+    headers.forEach((header, index) => {
+      const cleanHeader = headerMapping[header];
+      if (cleanHeader) {
+        event[cleanHeader] = row[index];
+      }
+    });
     
-    // Example: Log the title of the page to confirm successful loading.
-    const pageTitle = $('title').text();
-    console.log(`[VLTRN-Scout-WARN] Page Title: ${pageTitle}`);
+    // Only add if the event has key information
+    if (event.companyName && event.employeeCount) {
+      normalizedEvents.push(event);
+    }
+  });
+
+  return normalizedEvents;
+}
+
+async function processWarnExcel() {
+  console.log(`[VLTRN-Scout-WARN] Initializing download for: ${TARGET_URL}`);
+  try {
+    const { data } = await axios.get(TARGET_URL, { responseType: 'arraybuffer' });
+    console.log('[VLTRN-Scout-WARN] File downloaded. Parsing workbook...');
+    
+    const workbook = xlsx.read(data);
+    const sheetName = 'Detailed WARN Report ';
+    const worksheet = workbook.Sheets[sheetName];
+
+    if (!worksheet) {
+      throw new Error(`Sheet "${sheetName}" not found in the workbook.`);
+    }
+
+    // Convert the sheet to a raw array of arrays, ignoring library headers.
+    const rawData = xlsx.utils.sheet_to_json(worksheet, { header: 1 });
+    
+    // Normalize the raw data into clean JSON.
+    const layoffEvents = normalizeData(rawData);
+
+    console.log(`[VLTRN-Scout-WARN] Normalization complete. Found ${layoffEvents.length} valid records.`);
+    console.log('[VLTRN-Scout-WARN] Sample of structured data:');
+    console.log(JSON.stringify(layoffEvents.slice(0, 3), null, 2));
+
+    return layoffEvents;
 
   } catch (error) {
-    console.error('[VLTRN-Scout-WARN] An error occurred during the scrape operation:', error.message);
+    console.error('[VLTRN-Scout-WARN] An error occurred during the operation:', error.message);
   }
 }
 
-// Execute the main function.
-scrapeWarnNotices();
+processWarnExcel();
