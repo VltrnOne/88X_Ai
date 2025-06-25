@@ -1,0 +1,19 @@
+# docker-compose.yaml
+
+services:
+  dataroom-db:
+    image: postgres:16
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      # The format is "HOST_PORT:CONTAINER_PORT".
+      # We now map port 5433 on the host to avoid conflicts.
+      - "5433:5432"
+    volumes:
+      - dataroom-data:/var/lib/postgresql/data
+
+volumes:
+  dataroom-data:
