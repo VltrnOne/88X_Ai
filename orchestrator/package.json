@@ -1,0 +1,14 @@
+{
+    "name": "vltrn-orchestrator",
+    "version": "1.0.0",
+    "description": "The central orchestrator for the VLTRN agent system.",
+    "main": "index.js",
+    "type": "module",
+    "scripts": {
+      "start": "node index.js"
+    },
+    "dependencies": {
+      "execa": "^8.0.1"
+    }
+  }
+  
