@@ -1,50 +1,39 @@
-// orchestrator/index.js
-// This script is the central brain for running VLTRN agents.
-
-// We use the 'execa' library to run shell commands and agent scripts.
-// The {$} syntax is a convenient shorthand provided by execa.
+// orchestrator/index.js v3.0 - Docker-in-Docker Orchestration
 import { $ } from 'execa';
 
-/**
- * Executes a VLTRN agent script located in the ../agents/ directory.
- * @param {string} agentName - The name of the agent directory (e.g., 'scout-warn').
- */
-async function runAgent(agentName) {
-  console.log(`[VLTRN-Orchestrator] Initiating agent: ${agentName}`);
-  
-  const agentPath = `../agents/${agentName}`;
+async function runAgentContainer(agentName) {
+  const imageName = `vltrn/${agentName}:1.0.0`;
+  console.log(`[VLTRN-Orchestrator] Initiating agent container: ${imageName}`);
   
   try {
-    // We create a child process that navigates into the agent's directory
-    // and executes its start command ('node index.js').
-    // The 'stdio: "inherit"' option streams the agent's output (stdout, stderr)
-    // directly to the orchestrator's console in real-time.
-    const agentProcess = $({ stdio: 'inherit' })`cd ${agentPath} && node index.js`;
+    // The --env-file flag points to a file *on the host machine*.
+    // Since we are running in a container, we must use absolute paths
+    // or run the docker command from the project root on the host.
+    // For this test, we assume the .env file is in the current working directory
+    // from where the 'docker compose up' command is run.
+    // A more advanced setup would use Kubernetes secrets.
     
-    // We wait for the agent's process to complete.
+    // We execute the 'docker run' command.
+    const agentProcess = $({ stdio: 'inherit' })`docker run --rm --network="vltrn-system_default" --env-file .env ${imageName}`;
+    
     await agentProcess;
     
-    console.log(`[VLTRN-Orchestrator] Agent ${agentName} finished its mission.`);
+    console.log(`[VLTRN-Orchestrator] Agent container ${imageName} finished its mission.`);
   } catch (error) {
-    console.error(`[VLTRN-Orchestrator] Agent ${agentName} failed during execution.`);
-    // The error from the agent will have already been printed due to stdio: 'inherit'.
+    console.error(`[VLTRN-Orchestrator] Agent container ${imageName} failed during execution.`);
   }
 }
 
-/**
- * The main orchestration workflow.
- */
 async function main() {
-  console.log('[VLTRN-Orchestrator] Starting main workflow...');
+  console.log('[VLTRN-Orchestrator] Starting containerized orchestration workflow...');
   
   // --- Step 1: Run the WARN notice scraper ---
-  await runAgent('scout-warn');
+  await runAgentContainer('scout-warn');
   
-  // --- Step 2: Run the lead enricher (placeholder for future logic) ---
-   await runAgent('marketer-agent');
+  // --- Step 2: Run the lead enricher ---
+  await runAgentContainer('marketer-agent');
 
-  console.log('[VLTRN-Orchestrator] Main workflow complete.');
+  console.log('[VLTRN-Orchestrator] Main orchestration workflow complete.');
 }
 
-// Execute the main workflow.
 main();
