@@ -1,0 +1,53 @@
+# kubernetes/dataroom-db.yaml
+
+# --- Service ---
+# This defines a stable network endpoint for our database.
+apiVersion: v1
+kind: Service
+metadata:
+  name: dataroom-db-service
+spec:
+  ports:
+  - port: 5432
+  selector:
+    app: dataroom-db
+
+---
+
+# --- StatefulSet ---
+# This is used for stateful applications like databases.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: dataroom-db
+spec:
+  serviceName: "dataroom-db-service"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dataroom-db
+  template:
+    metadata:
+      labels:
+        app: dataroom-db
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:16
+        ports:
+        - containerPort: 5432
+        # UPDATED: We now reference the new, comprehensive 'vltrn-secrets'.
+        envFrom:
+        - secretRef:
+            name: vltrn-secrets
+        volumeMounts:
+        - name: dataroom-data
+          mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+  - metadata:
+      name: dataroom-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi # Request 1 Gibibyte of storage.

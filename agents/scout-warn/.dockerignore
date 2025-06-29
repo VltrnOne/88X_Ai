@@ -1,0 +1,7 @@
+# .dockerignore
+# Ignore local development artifacts
+node_modules
+npm-debug.log
+
+# Ignore environment files
+.env

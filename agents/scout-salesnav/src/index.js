@@ -1,48 +1,101 @@
-import express from 'express';
- import axios from 'axios';
- import * as cheerio from 'cheerio';
+// agents/scout-salesnav/src/index.js
 
- const PORT = process.env.PORT || 8080;
- const CA_WARN_URL = 'https://edd.ca.gov/en/jobs_and_training/warn_report_listing/';
+const puppeteer = require('puppeteer-core');
+const db = require('../db');
 
- const app = express();
- app.get('/healthz', (_req, res) => res.status(200).send('OK'));
+// --- Environment Variable Validation ---
+const { BROWSER_ENDPOINT, LINKEDIN_EMAIL, LINKEDIN_PASSWORD, SEARCH_URL } = process.env;
 
- // This agent now takes no input, its mission is hardcoded.
- app.post('/execute-task', async (_req, res) => {
-     console.log('[VLTRN-WARN-SCOUT] Mission Start. Targeting CA WARN notices...');
-     try {
-         const { data } = await axios.get(CA_WARN_URL);
-         const $ = cheerio.load(data);
-         const layoffEvents = [];
+if (!BROWSER_ENDPOINT || !LINKEDIN_EMAIL || !LINKEDIN_PASSWORD || !SEARCH_URL) {
+  console.error('FATAL: Missing one or more required environment variables.');
+  console.error('Ensure BROWSER_ENDPOINT, LINKEDIN_EMAIL, LINKEDIN_PASSWORD, and SEARCH_URL are set.');
+  process.exit(1);
+}
 
-         // Find the table and iterate over each row, skipping the header
-         $('#warn-report table tbody tr').slice(1).each((_i, row) => {
-             const columns = $(row).find('td');
-             if (columns.length >= 7) {
-                 const companyName = $(columns[2]).text().trim();
-                 const employeeCount = parseInt($(columns[5]).text().trim(), 10);
-                 if (companyName && !isNaN(employeeCount) && employeeCount > 0) {
-                     layoffEvents.push({
-                         source: 'CA_WARN_NOTICES',
-                         company: companyName,
-                         affected_employees: employeeCount,
-                         location: $(columns[3]).text().trim(),
-                         notice_date: $(columns[0]).text().trim(),
-                     });
-                 }
-             }
-         });
+// --- Database Insertion Logic ---
+async function saveLeadsToDatabase(leads) {
+  if (!leads || leads.length === 0) {
+    console.log('No leads found to save.');
+    return;
+  }
 
-         console.log(`[VLTRN-WARN-SCOUT] SUCCESS. Ingested ${layoffEvents.length} corporate layoff events.`);
-         res.status(200).json({ status: 'success', event_count: layoffEvents.length, events: layoffEvents });
+  const client = await db.connect();
+  console.log('Successfully connected to the database.');
 
-     } catch (error) {
-         console.error('[VLTRN-WARN-SCOUT] MISSION FAILURE:', error.message);
-         res.status(500).json({ status: 'error', message: 'Failed to ingest WARN act data.', details: error.message });
-     }
- });
+  try {
+    for (const lead of leads) {
+      const query = {
+        text: `INSERT INTO sales_navigator_leads(full_name, title, location, profile_url, source_url)
+               VALUES($1, $2, $3, $4, $5)
+               ON CONFLICT (profile_url) DO NOTHING;`,
+        values: [lead.name, lead.title, lead.location, lead.url, SEARCH_URL],
+      };
+      await client.query(query);
+    }
+    console.log(`Successfully processed and saved/ignored ${leads.length} leads into the Dataroom.`);
+  } catch (err) {
+    console.error('Error during database insertion:', err.stack);
+    // Propagate the error to fail the Kubernetes Job
+    throw err;
+  } finally {
+    client.release();
+    console.log('Database client released.');
+  }
+}
 
- app.listen(PORT, () => {
-     console.log(`🤖 VLTRN WARN Scout Agent is online on port ${PORT}`);
- });
+// --- Main Scraping Logic ---
+async function main() {
+  console.log('Connecting to remote browser...');
+  const browser = await puppeteer.connect({ browserWSEndpoint: BROWSER_ENDPOINT });
+  const page = await browser.newPage();
+  await page.setViewport({ width: 1280, height: 1024 });
+
+  console.log('Navigating to LinkedIn login page...');
+  await page.goto('https://www.linkedin.com/login', { waitUntil: 'domcontentloaded' });
+  
+  await page.type('#username', LINKEDIN_EMAIL);
+  await page.type('#password', LINKEDIN_PASSWORD);
+  await page.click('button[type="submit"]');
+  await page.waitForNavigation({ waitUntil: 'domcontentloaded' });
+  console.log('Login successful.');
+
+  console.log(`Navigating to Sales Navigator search URL...`);
+  await page.goto(SEARCH_URL, { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('.artdeco-list__item', { timeout: 60000 });
+  console.log('Search results page loaded.');
+
+  console.log('Scraping leads from page...');
+  // Note: LinkedIn selectors can be volatile. This is a best-effort selector.
+  const leads = await page.evaluate(() => {
+    const results = [];
+    document.querySelectorAll('li.artdeco-list__item').forEach(item => {
+      const nameElement = item.querySelector('a[data-an-action="view-profile"] .artdeco-entity-lockup__title');
+      const titleElement = item.querySelector('.artdeco-entity-lockup__subtitle');
+      const locationElement = item.querySelector('dd[title="Geography"]');
+
+      if (nameElement && nameElement.href) {
+        results.push({
+          name: nameElement.innerText.trim(),
+          title: titleElement ? titleElement.innerText.trim() : 'N/A',
+          location: locationElement ? locationElement.innerText.trim() : 'N/A',
+          url: nameElement.href.split('?')[0] // Clean URL
+        });
+      }
+    });
+    return results;
+  });
+  console.log(`Scraped ${leads.length} potential leads from the page.`);
+
+  if (leads.length > 0) {
+    await saveLeadsToDatabase(leads);
+  }
+
+  await browser.close();
+  console.log('Browser closed. Mission complete.');
+}
+
+// --- Execution ---
+main().catch(err => {
+  console.error('A critical error occurred, failing the job:', err);
+  process.exit(1);
+});

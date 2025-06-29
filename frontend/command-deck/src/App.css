@@ -1,0 +1,193 @@
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
+
+.login-logo {
+  width: 200px; /* Or adjust to your preference */
+  margin-bottom: 5px;
+}
+
+.login-message {
+  margin-top: 15px;
+  font-size: 0.9rem;
+  color: #aaa;
+}
+
+.dashboard-container {
+  text-align: center;
+}
+
+.dashboard-title {
+  color: #e0e0e0;
+}
+
+.logout-button {
+  margin-top: 20px;
+  padding: 10px 20px;
+  background-color: #c93c3c; /* A standard 'danger' or 'logout' red */
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.logout-button:hover {
+  background-color: #a52f2f;
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid #333;
+  margin: 20px 0;
+}
+
+.leads-section {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.leads-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+
+.leads-table th, .leads-table td {
+  border: 1px solid #333;
+  padding: 10px;
+  text-align: left;
+}
+
+.leads-table th {
+  background-color: #2b2b2b;
+}
+
+.leads-table a {
+  color: #4A90E2;
+  text-decoration: none;
+}
+
+.leads-table a:hover {
+  text-decoration: underline;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.mission-control-section {
+  padding: 20px;
+  background-color: #1e1e1e;
+  border: 1px solid #333;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  width: 100%;
+  max-width: 800px;
+  margin: 20px auto;
+}
+
+.mission-buttons {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+}
+
+.mission-button {
+  padding: 10px 20px;
+  background-color: #4a90e2;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.mission-button:hover {
+  background-color: #357ABD;
+}
+
+.job-status-message {
+  margin-top: 15px;
+  font-style: italic;
+  color: #aaa;
+}
+
+.sort-button {
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  width: 100%;
+}
+
+.sort-button:hover {
+  color: #4A90E2;
+}
+
+.leads-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.filter-input {
+  background-color: #2b2b2b;
+  border: 1px solid #444;
+  color: #e0e0e0;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}

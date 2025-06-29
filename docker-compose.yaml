@@ -1,4 +1,4 @@
-# docker-compose.yaml
+# docker-compose.yaml v3.0 - Full stack with Containerized Orchestrator
 
 services:
   dataroom-db:
@@ -9,11 +9,41 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      # The format is "HOST_PORT:CONTAINER_PORT".
-      # We now map port 5433 on the host to avoid conflicts.
       - "5433:5432"
     volumes:
       - dataroom-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  scout-warn:
+    build: ./agents/scout-warn
+    image: vltrn/scout-warn:1.0.0
+    env_file: .env
+    depends_on:
+      dataroom-db:
+        condition: service_healthy
+
+  marketer-agent:
+    build: ./agents/marketer-agent
+    image: vltrn/marketer-agent:1.0.0
+    env_file: .env
+    depends_on:
+      dataroom-db:
+        condition: service_healthy
+  
+  orchestrator:
+    build: ./orchestrator
+    image: vltrn/orchestrator:1.0.0
+    volumes:
+      # CRITICAL: This mounts the host's Docker socket into the container,
+      # giving the orchestrator control over the Docker daemon.
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - scout-warn # Depends on the images being built.
+      - marketer-agent # Depends on the images being built.
 
 volumes:
   dataroom-data:

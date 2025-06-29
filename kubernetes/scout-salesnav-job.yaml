@@ -1,0 +1,19 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: scout-salesnav-run
+spec:
+  ttlSecondsAfterFinished: 300
+  backoffLimit: 2
+  template:
+    spec:
+      containers:
+      - name: scout-salesnav-agent
+        image: ghcr.io/vltrnone/scout-salesnav:1.0.1
+        imagePullPolicy: Always
+        envFrom:
+        - secretRef:
+            name: vltrn-secrets
+        - secretRef:
+            name: salesnav-credentials
+      restartPolicy: OnFailure

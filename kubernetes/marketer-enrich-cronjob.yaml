@@ -1,0 +1,23 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: marketer-enrich-cron
+spec:
+  # This schedule runs the job at the beginning of every hour.
+  # Format: Minute Hour DayOfMonth Month DayOfWeek
+  schedule: "0 * * * *"
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 3600 # Cleans up the job 1 hour after it finishes
+      template:
+        spec:
+          containers:
+          - name: marketer-enrich-agent
+            image: ghcr.io/vltrnone/marketer-enrich:1.0.0
+            imagePullPolicy: Always
+            envFrom:
+            - secretRef:
+                name: vltrn-secrets           # Provides DB credentials
+            - secretRef:
+                name: enrichment-api-keys     # Provides GitHub & BrightData keys
+          restartPolicy: OnFailure
