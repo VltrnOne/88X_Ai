@@ -1,0 +1,12 @@
+{
+  "name": "VLTRN MVP",
+  "dockerComposeFile": [ "docker-compose.yaml" ],
+  "service": "orchestrator",
+  "workspaceFolder": "/workspace",
+  "forwardPorts": [ 8080, 5173 ],
+  "extensions": [
+    "ms-azuretools.vscode-docker",
+    "ms-vscode.remote-repositories"
+  ],
+  "postCreateCommand": "docker compose up -d --build"
+}
