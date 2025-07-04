@@ -1,5 +1,4 @@
-# docker-compose.yaml v3.0 - Full stack with Containerized Orchestrator
-
+# docker-compose.yaml v3.2 - Corrected Orchestrator Dependency
 services:
   dataroom-db:
     image: postgres:16
@@ -13,10 +12,22 @@ services:
     volumes:
       - dataroom-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
       interval: 5s
       timeout: 5s
       retries: 5
+
+  orchestrator:
+    build: ./orchestrator
+    image: vltrn/orchestrator:1.0.0
+    ports:
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    # --- THIS IS THE FIX ---
+    depends_on:
+      dataroom-db:
+        condition: service_healthy
 
   scout-warn:
     build: ./agents/scout-warn
@@ -33,17 +44,6 @@ services:
     depends_on:
       dataroom-db:
         condition: service_healthy
-  
-  orchestrator:
-    build: ./orchestrator
-    image: vltrn/orchestrator:1.0.0
-    volumes:
-      # CRITICAL: This mounts the host's Docker socket into the container,
-      # giving the orchestrator control over the Docker daemon.
-      - /var/run/docker.sock:/var/run/docker.sock
-    depends_on:
-      - scout-warn # Depends on the images being built.
-      - marketer-agent # Depends on the images being built.
 
 volumes:
   dataroom-data:

@@ -1,38 +1,32 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 
 const AuthContext = createContext(null);
+const TOKEN_KEY = 'vltrn-token'; // Standardize the key
 
 export function AuthProvider({ children }) {
-  // Initialize state by trying to read the token from localStorage first.
-  const [token, setToken] = useState(localStorage.getItem('vltrn-token'));
+  const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY));
 
-  // This effect runs whenever the token state changes.
-  useEffect(() => {
-    if (token) {
-      // If a token exists, store it.
-      localStorage.setItem('vltrn-token', token);
-    } else {
-      // If the token is null (e.g., after logout), remove it.
-      localStorage.removeItem('vltrn-token');
-    }
-  }, [token]);
-
-  // The login function now just needs to set the state.
-  // The useEffect hook will handle saving it to localStorage.
   const login = (newToken) => {
     setToken(newToken);
+    localStorage.setItem(TOKEN_KEY, newToken);
   };
 
-  // The logout function now just needs to clear the state.
   const logout = () => {
     setToken(null);
+    localStorage.removeItem(TOKEN_KEY);
   };
 
-  const value = { token, login, logout };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ token, login, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {
-  return useContext(AuthContext);
+  const ctx = useContext(AuthContext);
+  if (!ctx) {
+    throw new Error('useAuth must be inside an AuthProvider');
+  }
+  return ctx;
 }

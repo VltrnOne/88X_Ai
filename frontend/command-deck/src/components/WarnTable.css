@@ -1,0 +1,25 @@
+.warn-table-container {
+  margin-top: 2rem;
+  font-family: sans-serif;
+}
+
+.warn-table-container table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+.warn-table-container th,
+.warn-table-container td {
+  border: 1px solid #444;
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.warn-table-container th {
+  background-color: #333;
+}
+
+.warn-table-container tbody tr:nth-child(odd) {
+  background-color: #2a2a2a;
+}

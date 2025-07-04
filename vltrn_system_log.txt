@@ -1,0 +1,600 @@
+#1 [internal] load local bake definitions
+#1 reading from stdin 1.08kB done
+#1 DONE 0.0s
+
+#2 [orchestrator internal] load build definition from Dockerfile
+#2 transferring dockerfile: 685B done
+#2 DONE 0.0s
+
+#3 [marketer-agent internal] load build definition from Dockerfile
+#3 transferring dockerfile: 445B done
+#3 DONE 0.0s
+
+#4 [scout-warn internal] load build definition from Dockerfile
+#4 transferring dockerfile: 951B done
+#4 DONE 0.0s
+
+#5 [auth] library/node:pull token for registry-1.docker.io
+#5 DONE 0.0s
+
+#6 [marketer-agent internal] load metadata for docker.io/library/node:20-alpine
+#6 DONE 2.0s
+
+#7 [orchestrator internal] load .dockerignore
+#7 transferring context: 87B done
+#7 DONE 0.0s
+
+#8 [scout-warn internal] load .dockerignore
+#8 transferring context: 152B done
+#8 DONE 0.0s
+
+#9 [marketer-agent internal] load .dockerignore
+#9 transferring context: 87B done
+#9 DONE 0.0s
+
+#10 [scout-warn builder 1/5] FROM docker.io/library/node:20-alpine@sha256:674181320f4f94582c6182eaa151bf92c6744d478be0f1d12db804b7d59b2d11
+#10 resolve docker.io/library/node:20-alpine@sha256:674181320f4f94582c6182eaa151bf92c6744d478be0f1d12db804b7d59b2d11 done
+#10 DONE 0.0s
+
+#11 [orchestrator internal] load build context
+#11 transferring context: 400B done
+#11 DONE 0.0s
+
+#12 [marketer-agent internal] load build context
+#12 transferring context: 187B done
+#12 DONE 0.0s
+
+#13 [scout-warn internal] load build context
+#13 transferring context: 283B done
+#13 DONE 0.0s
+
+#14 [orchestrator builder 5/5] COPY . .
+#14 CACHED
+
+#15 [orchestrator stage-1 3/5] WORKDIR /usr/src/app
+#15 CACHED
+
+#16 [orchestrator builder 3/5] COPY package*.json ./
+#16 CACHED
+
+#17 [orchestrator stage-1 2/5] RUN apk add --no-cache docker-cli
+#17 CACHED
+
+#18 [orchestrator stage-1 4/5] COPY --from=builder /usr/src/app/node_modules ./node_modules
+#18 CACHED
+
+#19 [orchestrator builder 4/5] RUN npm ci --only=production
+#19 CACHED
+
+#20 [orchestrator stage-1 5/5] COPY --from=builder /usr/src/app/ .
+#20 CACHED
+
+#21 [marketer-agent stage-1 3/4] COPY --from=builder /usr/src/app/node_modules ./node_modules
+#21 CACHED
+
+#22 [marketer-agent builder 5/5] COPY . .
+#22 CACHED
+
+#23 [marketer-agent builder 3/5] COPY package*.json ./
+#23 CACHED
+
+#24 [marketer-agent builder 4/5] RUN npm ci --only=production
+#24 CACHED
+
+#25 [marketer-agent stage-1 4/4] COPY --from=builder /usr/src/app/ .
+#25 CACHED
+
+#26 [scout-warn builder 4/5] RUN npm ci --only=production
+#26 CACHED
+
+#27 [scout-warn stage-1 3/4] COPY --from=builder /usr/src/app/node_modules ./node_modules
+#27 CACHED
+
+#28 [scout-warn builder 3/5] COPY package*.json ./
+#28 CACHED
+
+#29 [scout-warn builder 5/5] COPY . .
+#29 CACHED
+
+#30 [scout-warn builder 2/5] WORKDIR /usr/src/app
+#30 CACHED
+
+#31 [scout-warn stage-1 4/4] COPY --from=builder /usr/src/app/ .
+#31 CACHED
+
+#32 [scout-warn] exporting to docker image format
+#32 exporting layers done
+#32 exporting manifest sha256:b88f99e22511adaa69447660fa49bb782ce6d911801be76055a175ad36c549ec done
+#32 exporting config sha256:3721ece6ff6ec970f1bed6e6e57e24eafde9b2df0f901a37b82a8c6ab37aaa3c done
+#32 sending tarball
+#32 ...
+
+#33 [marketer-agent] exporting to docker image format
+#33 exporting layers done
+#33 exporting manifest sha256:fe10583f91c1ea888e3047afab425dc57b25c60e299928f75d59464969e054ed done
+#33 exporting config sha256:bb9e4bdc049646ae5d5023cd4eae3c6964694a405c4279608a7275bde8d93d52 done
+#33 sending tarball 1.4s done
+#33 DONE 1.4s
+
+#34 importing to docker
+#34 DONE 0.0s
+
+#35 importing to docker
+#35 DONE 0.0s
+
+#32 [scout-warn] exporting to docker image format
+#32 sending tarball 1.4s done
+#32 DONE 1.5s
+
+#36 [marketer-agent] resolving provenance for metadata file
+#36 DONE 0.0s
+
+#37 [scout-warn] resolving provenance for metadata file
+#37 DONE 0.0s
+
+#38 importing to docker
+#38 DONE 0.0s
+
+#39 [orchestrator] exporting to docker image format
+#39 exporting layers done
+#39 exporting manifest sha256:8c637eabba6e2534a918d3942c0db0b86054b1662904babf90e69fc404b80d5e done
+#39 exporting config sha256:1536d12122760d2295daa163f0195d80986f87d13ac1bf20f57d908194cc7390 done
+#39 sending tarball 1.6s done
+#39 DONE 1.6s
+
+#40 [orchestrator] resolving provenance for metadata file
+#40 DONE 0.0s
+ orchestrator  Built
+ scout-warn  Built
+ marketer-agent  Built
+ Network vltrn-system_default  Creating
+ Network vltrn-system_default  Created
+ Volume "vltrn-system_dataroom-data"  Creating
+ Volume "vltrn-system_dataroom-data"  Created
+ Container vltrn-system-dataroom-db-1  Creating
+ Container vltrn-system-dataroom-db-1  Created
+ Container vltrn-system-orchestrator-1  Creating
+ Container vltrn-system-scout-warn-1  Creating
+ Container vltrn-system-marketer-agent-1  Creating
+ Container vltrn-system-scout-warn-1  Created
+ Container vltrn-system-orchestrator-1  Created
+ Container vltrn-system-marketer-agent-1  Created
+Attaching to dataroom-db-1, marketer-agent-1, orchestrator-1, scout-warn-1
+dataroom-db-1     | The files belonging to this database system will be owned by user "postgres".
+dataroom-db-1     | This user must also own the server process.
+dataroom-db-1     | 
+dataroom-db-1     | The database cluster will be initialized with locale "en_US.utf8".
+dataroom-db-1     | The default database encoding has accordingly been set to "UTF8".
+dataroom-db-1     | The default text search configuration will be set to "english".
+dataroom-db-1     | 
+dataroom-db-1     | Data page checksums are disabled.
+dataroom-db-1     | 
+dataroom-db-1     | fixing permissions on existing directory /var/lib/postgresql/data ... ok
+dataroom-db-1     | creating subdirectories ... ok
+dataroom-db-1     | selecting dynamic shared memory implementation ... posix
+dataroom-db-1     | selecting default max_connections ... 100
+dataroom-db-1     | selecting default shared_buffers ... 128MB
+dataroom-db-1     | selecting default time zone ... Etc/UTC
+dataroom-db-1     | creating configuration files ... ok
+dataroom-db-1     | running bootstrap script ... ok
+dataroom-db-1     | performing post-bootstrap initialization ... ok
+dataroom-db-1     | syncing data to disk ... ok
+dataroom-db-1     | 
+dataroom-db-1     | 
+dataroom-db-1     | Success. You can now start the database server using:
+dataroom-db-1     | 
+dataroom-db-1     |     pg_ctl -D /var/lib/postgresql/data -l logfile start
+dataroom-db-1     | 
+dataroom-db-1     | initdb: warning: enabling "trust" authentication for local connections
+dataroom-db-1     | initdb: hint: You can change this by editing pg_hba.conf or using the option -A, or --auth-local and --auth-host, the next time you run initdb.
+dataroom-db-1     | waiting for server to start....2025-07-04 17:52:59.941 UTC [48] LOG:  starting PostgreSQL 16.9 (Debian 16.9-1.pgdg120+1) on aarch64-unknown-linux-gnu, compiled by gcc (Debian 12.2.0-14) 12.2.0, 64-bit
+dataroom-db-1     | 2025-07-04 17:52:59.942 UTC [48] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+dataroom-db-1     | 2025-07-04 17:52:59.944 UTC [51] LOG:  database system was shut down at 2025-07-04 17:52:59 UTC
+dataroom-db-1     | 2025-07-04 17:52:59.946 UTC [48] LOG:  database system is ready to accept connections
+dataroom-db-1     |  done
+dataroom-db-1     | server started
+dataroom-db-1     | CREATE DATABASE
+dataroom-db-1     | 
+dataroom-db-1     | 
+dataroom-db-1     | /usr/local/bin/docker-entrypoint.sh: ignoring /docker-entrypoint-initdb.d/*
+dataroom-db-1     | 
+dataroom-db-1     | waiting for server to shut down....2025-07-04 17:53:00.097 UTC [48] LOG:  received fast shutdown request
+dataroom-db-1     | 2025-07-04 17:53:00.097 UTC [48] LOG:  aborting any active transactions
+dataroom-db-1     | 2025-07-04 17:53:00.098 UTC [48] LOG:  background worker "logical replication launcher" (PID 54) exited with exit code 1
+dataroom-db-1     | 2025-07-04 17:53:00.098 UTC [49] LOG:  shutting down
+dataroom-db-1     | 2025-07-04 17:53:00.099 UTC [49] LOG:  checkpoint starting: shutdown immediate
+dataroom-db-1     | 2025-07-04 17:53:00.128 UTC [49] LOG:  checkpoint complete: wrote 922 buffers (5.6%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.007 s, sync=0.022 s, total=0.030 s; sync files=301, longest=0.011 s, average=0.001 s; distance=4255 kB, estimate=4255 kB; lsn=0/1912080, redo lsn=0/1912080
+dataroom-db-1     | 2025-07-04 17:53:00.131 UTC [48] LOG:  database system is shut down
+dataroom-db-1     |  done
+dataroom-db-1     | server stopped
+dataroom-db-1     | 
+dataroom-db-1     | PostgreSQL init process complete; ready for start up.
+dataroom-db-1     | 
+dataroom-db-1     | 2025-07-04 17:53:00.213 UTC [1] LOG:  starting PostgreSQL 16.9 (Debian 16.9-1.pgdg120+1) on aarch64-unknown-linux-gnu, compiled by gcc (Debian 12.2.0-14) 12.2.0, 64-bit
+dataroom-db-1     | 2025-07-04 17:53:00.213 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+dataroom-db-1     | 2025-07-04 17:53:00.213 UTC [1] LOG:  listening on IPv6 address "::", port 5432
+dataroom-db-1     | 2025-07-04 17:53:00.214 UTC [1] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+dataroom-db-1     | 2025-07-04 17:53:00.216 UTC [64] LOG:  database system was shut down at 2025-07-04 17:53:00 UTC
+dataroom-db-1     | 2025-07-04 17:53:00.218 UTC [1] LOG:  database system is ready to accept connections
+dataroom-db-1     | 2025-07-04 17:53:04.605 UTC [75] FATAL:  database "vltrn_admin" does not exist
+marketer-agent-1  | node:internal/modules/cjs/loader:1215
+marketer-agent-1  |   throw err;
+marketer-agent-1  |   ^
+marketer-agent-1  | 
+marketer-agent-1  | Error: Cannot find module 'dotenv'
+marketer-agent-1  | Require stack:
+marketer-agent-1  | - /usr/src/app/index.js
+marketer-agent-1  |     at Module._resolveFilename (node:internal/modules/cjs/loader:1212:15)
+marketer-agent-1  |     at Module._load (node:internal/modules/cjs/loader:1043:27)
+marketer-agent-1  |     at Module.require (node:internal/modules/cjs/loader:1298:19)
+marketer-agent-1  |     at require (node:internal/modules/helpers:182:18)
+marketer-agent-1  |     at Object.<anonymous> (/usr/src/app/index.js:4:1)
+marketer-agent-1  |     at Module._compile (node:internal/modules/cjs/loader:1529:14)
+marketer-agent-1  |     at Module._extensions..js (node:internal/modules/cjs/loader:1613:10)
+marketer-agent-1  |     at Module.load (node:internal/modules/cjs/loader:1275:32)
+marketer-agent-1  |     at Module._load (node:internal/modules/cjs/loader:1096:12)
+marketer-agent-1  |     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12) {
+marketer-agent-1  |   code: 'MODULE_NOT_FOUND',
+marketer-agent-1  |   requireStack: [ '/usr/src/app/index.js' ]
+marketer-agent-1  | }
+marketer-agent-1  | 
+marketer-agent-1  | Node.js v20.19.3
+scout-warn-1      | node:internal/modules/cjs/loader:1215
+scout-warn-1      |   throw err;
+scout-warn-1      |   ^
+scout-warn-1      | 
+scout-warn-1      | Error: Cannot find module 'dotenv'
+scout-warn-1      | Require stack:
+scout-warn-1      | - /usr/src/app/index.js
+scout-warn-1      |     at Module._resolveFilename (node:internal/modules/cjs/loader:1212:15)
+scout-warn-1      |     at Module._load (node:internal/modules/cjs/loader:1043:27)
+scout-warn-1      |     at Module.require (node:internal/modules/cjs/loader:1298:19)
+scout-warn-1      |     at require (node:internal/modules/helpers:182:18)
+scout-warn-1      |     at Object.<anonymous> (/usr/src/app/index.js:2:1)
+scout-warn-1      |     at Module._compile (node:internal/modules/cjs/loader:1529:14)
+scout-warn-1      |     at Module._extensions..js (node:internal/modules/cjs/loader:1613:10)
+scout-warn-1      |     at Module.load (node:internal/modules/cjs/loader:1275:32)
+scout-warn-1      |     at Module._load (node:internal/modules/cjs/loader:1096:12)
+scout-warn-1      |     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12) {
+scout-warn-1      |   code: 'MODULE_NOT_FOUND',
+scout-warn-1      |   requireStack: [ '/usr/src/app/index.js' ]
+scout-warn-1      | }
+scout-warn-1      | 
+scout-warn-1      | Node.js v20.19.3
+orchestrator-1    | node:internal/modules/cjs/loader:1215
+orchestrator-1    |   throw err;
+orchestrator-1    |   ^
+orchestrator-1    | 
+orchestrator-1    | Error: Cannot find module '/usr/src/app/index.js'
+orchestrator-1    |     at Module._resolveFilename (node:internal/modules/cjs/loader:1212:15)
+orchestrator-1    |     at Module._load (node:internal/modules/cjs/loader:1043:27)
+orchestrator-1    |     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12)
+orchestrator-1    |     at node:internal/main/run_main_module:28:49 {
+orchestrator-1    |   code: 'MODULE_NOT_FOUND',
+orchestrator-1    |   requireStack: []
+orchestrator-1    | }
+orchestrator-1    | 
+orchestrator-1    | Node.js v20.19.3
+[Kscout-warn-1 exited with code 1
+[Kmarketer-agent-1 exited with code 1
+[Korchestrator-1 exited with code 1
+dataroom-db-1     | 2025-07-04 17:53:09.674 UTC [83] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:53:14.745 UTC [91] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:53:19.830 UTC [99] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:53:24.901 UTC [107] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:53:29.997 UTC [115] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:53:35.061 UTC [124] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:53:40.136 UTC [132] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:53:45.216 UTC [140] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:53:50.295 UTC [148] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:53:55.374 UTC [156] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:54:00.467 UTC [165] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:54:05.549 UTC [173] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:54:10.632 UTC [181] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:54:15.716 UTC [189] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:54:20.798 UTC [197] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:54:25.869 UTC [205] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:54:30.951 UTC [214] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:54:36.034 UTC [222] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:54:41.122 UTC [230] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:54:46.204 UTC [238] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:54:51.281 UTC [246] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:54:56.351 UTC [254] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:55:01.427 UTC [263] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:55:06.499 UTC [271] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:55:11.572 UTC [279] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:55:16.649 UTC [287] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:55:21.727 UTC [295] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:55:26.804 UTC [303] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:55:31.885 UTC [312] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:55:36.967 UTC [321] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:55:42.047 UTC [329] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:55:47.132 UTC [337] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:55:52.207 UTC [345] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:55:57.287 UTC [353] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:56:02.345 UTC [362] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:56:07.424 UTC [370] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:56:12.492 UTC [378] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:56:17.574 UTC [386] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:56:22.660 UTC [394] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:56:27.744 UTC [402] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:56:32.824 UTC [411] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:56:37.908 UTC [419] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:56:42.984 UTC [427] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:56:48.063 UTC [435] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:56:53.121 UTC [443] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:56:58.199 UTC [451] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:57:03.276 UTC [460] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:57:08.357 UTC [468] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:57:13.430 UTC [476] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:57:18.517 UTC [484] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:57:23.596 UTC [492] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:57:28.685 UTC [500] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:57:33.763 UTC [509] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:57:38.851 UTC [517] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:57:43.930 UTC [525] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:57:49.017 UTC [533] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:57:54.110 UTC [541] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:57:59.188 UTC [549] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:58:00.329 UTC [62] LOG:  checkpoint starting: time
+dataroom-db-1     | 2025-07-04 17:58:04.278 UTC [558] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:58:04.734 UTC [62] LOG:  checkpoint complete: wrote 45 buffers (0.3%); 0 WAL file(s) added, 0 removed, 0 recycled; write=4.389 s, sync=0.008 s, total=4.406 s; sync files=12, longest=0.006 s, average=0.001 s; distance=260 kB, estimate=260 kB; lsn=0/19534A0, redo lsn=0/1953468
+dataroom-db-1     | 2025-07-04 17:58:09.355 UTC [566] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:58:14.419 UTC [574] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:58:19.496 UTC [582] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:58:24.571 UTC [590] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:58:29.653 UTC [598] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:58:34.745 UTC [607] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:58:39.811 UTC [615] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:58:44.893 UTC [623] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:58:49.972 UTC [631] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:58:55.045 UTC [639] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:59:00.126 UTC [647] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:59:05.199 UTC [656] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:59:10.282 UTC [664] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:59:15.370 UTC [672] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:59:20.454 UTC [680] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:59:25.549 UTC [688] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:59:30.640 UTC [697] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:59:35.711 UTC [705] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:59:40.800 UTC [713] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:59:45.881 UTC [721] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:59:50.956 UTC [729] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 17:59:56.052 UTC [737] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:00:01.131 UTC [746] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:00:06.213 UTC [754] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:00:11.310 UTC [762] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:00:16.402 UTC [770] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:00:21.493 UTC [778] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:00:26.584 UTC [786] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:00:31.671 UTC [795] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:00:36.762 UTC [803] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:00:41.853 UTC [811] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:00:46.932 UTC [819] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:00:52.014 UTC [827] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:00:57.081 UTC [835] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:01:02.180 UTC [844] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:01:07.272 UTC [852] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:01:12.355 UTC [860] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:01:17.442 UTC [868] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:01:22.502 UTC [876] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:01:27.578 UTC [884] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:01:32.653 UTC [893] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:01:37.745 UTC [901] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:01:42.821 UTC [909] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:01:47.907 UTC [917] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:01:52.997 UTC [925] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:01:58.078 UTC [933] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:02:03.159 UTC [942] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:02:08.248 UTC [950] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:02:13.327 UTC [958] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:02:18.403 UTC [966] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:02:23.491 UTC [974] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:02:28.577 UTC [982] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:02:33.608 UTC [991] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:02:38.696 UTC [999] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:02:43.775 UTC [1007] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:02:48.866 UTC [1015] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:02:53.943 UTC [1023] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:02:59.028 UTC [1031] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:03:04.121 UTC [1040] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:03:09.202 UTC [1048] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:03:14.298 UTC [1056] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:03:19.381 UTC [1064] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:03:24.478 UTC [1072] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:03:29.564 UTC [1080] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:03:34.659 UTC [1089] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:03:39.742 UTC [1097] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:03:44.818 UTC [1105] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:03:49.892 UTC [1113] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:03:54.971 UTC [1121] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:04:00.037 UTC [1129] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:04:05.120 UTC [1138] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:04:10.207 UTC [1146] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:04:15.261 UTC [1154] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:04:20.344 UTC [1162] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:04:25.435 UTC [1170] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:04:30.513 UTC [1178] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:04:35.599 UTC [1187] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:04:40.682 UTC [1195] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:04:45.765 UTC [1203] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:04:50.835 UTC [1211] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:04:55.914 UTC [1219] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:05:01.001 UTC [1228] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:05:06.084 UTC [1236] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:05:11.177 UTC [1244] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:05:16.248 UTC [1252] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:05:21.342 UTC [1260] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:05:26.430 UTC [1268] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:05:31.529 UTC [1277] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:05:36.596 UTC [1285] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:05:41.693 UTC [1293] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:05:46.780 UTC [1301] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:05:51.870 UTC [1309] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:05:56.959 UTC [1317] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:06:02.037 UTC [1326] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:06:07.115 UTC [1334] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:06:12.213 UTC [1342] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:06:17.306 UTC [1350] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:06:22.397 UTC [1358] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:06:27.490 UTC [1366] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:06:32.574 UTC [1375] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:06:37.654 UTC [1383] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:06:42.717 UTC [1391] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:06:47.797 UTC [1399] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:06:52.879 UTC [1407] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:06:57.966 UTC [1415] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:07:03.052 UTC [1424] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:07:08.135 UTC [1432] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:07:13.220 UTC [1440] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:07:18.311 UTC [1448] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:07:23.402 UTC [1456] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:07:28.480 UTC [1464] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:07:33.568 UTC [1473] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:07:38.649 UTC [1481] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:07:43.719 UTC [1489] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:07:48.804 UTC [1497] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:07:53.885 UTC [1505] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:07:58.967 UTC [1513] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:08:04.041 UTC [1522] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:08:09.121 UTC [1530] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:08:14.198 UTC [1538] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:08:19.284 UTC [1546] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:08:24.368 UTC [1554] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:08:29.451 UTC [1562] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:08:34.548 UTC [1571] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:08:39.646 UTC [1579] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:08:44.730 UTC [1587] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:08:49.806 UTC [1595] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:08:54.904 UTC [1603] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:08:59.983 UTC [1611] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:09:05.062 UTC [1620] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:09:10.151 UTC [1628] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:09:15.250 UTC [1636] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:09:20.313 UTC [1644] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:09:25.398 UTC [1652] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:09:30.470 UTC [1660] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:09:35.557 UTC [1669] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:09:40.632 UTC [1677] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:09:45.722 UTC [1685] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:09:50.792 UTC [1693] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:09:55.876 UTC [1701] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:10:00.958 UTC [1710] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:10:06.051 UTC [1718] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:10:11.145 UTC [1726] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:10:16.205 UTC [1734] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:10:21.301 UTC [1742] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:10:26.397 UTC [1750] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:10:31.490 UTC [1759] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:10:36.572 UTC [1767] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:10:41.657 UTC [1775] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:10:46.747 UTC [1783] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:10:51.841 UTC [1791] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:10:56.925 UTC [1799] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:11:02.012 UTC [1808] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:11:07.111 UTC [1816] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:11:12.202 UTC [1824] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:11:17.286 UTC [1832] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:11:22.383 UTC [1840] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:11:27.464 UTC [1848] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:11:32.555 UTC [1857] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:11:37.643 UTC [1865] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:11:42.736 UTC [1873] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:11:47.814 UTC [1881] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:11:52.904 UTC [1889] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:11:57.988 UTC [1897] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:12:03.044 UTC [1906] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:12:08.132 UTC [1914] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:12:13.205 UTC [1922] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:12:18.300 UTC [1930] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:12:23.389 UTC [1938] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:12:28.483 UTC [1946] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:12:33.565 UTC [1955] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:12:38.653 UTC [1963] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:12:43.738 UTC [1971] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:12:48.819 UTC [1979] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:12:53.899 UTC [1987] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:12:59.005 UTC [1995] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:13:04.088 UTC [2004] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:13:09.176 UTC [2012] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:13:14.256 UTC [2020] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:13:19.344 UTC [2028] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:13:24.454 UTC [2036] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:13:29.539 UTC [2044] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:13:34.626 UTC [2053] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:13:39.701 UTC [2061] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:13:44.777 UTC [2069] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:13:49.865 UTC [2077] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:13:54.947 UTC [2085] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:14:00.025 UTC [2093] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:14:05.105 UTC [2102] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:14:10.188 UTC [2110] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:14:15.282 UTC [2118] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:14:20.361 UTC [2126] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:14:25.434 UTC [2134] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:14:30.520 UTC [2142] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:14:35.587 UTC [2151] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:14:40.656 UTC [2159] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:14:45.725 UTC [2167] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:14:50.799 UTC [2175] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:14:55.868 UTC [2183] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:15:00.936 UTC [2192] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:15:06.004 UTC [2200] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:15:11.075 UTC [2208] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:15:16.150 UTC [2216] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:15:21.231 UTC [2224] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:15:26.304 UTC [2232] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:15:31.381 UTC [2241] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:15:36.475 UTC [2249] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:15:41.550 UTC [2257] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:15:46.627 UTC [2265] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:15:51.717 UTC [2273] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:15:56.794 UTC [2281] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:16:01.881 UTC [2290] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:16:06.964 UTC [2298] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:16:12.051 UTC [2306] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:16:17.115 UTC [2314] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:16:22.197 UTC [2322] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:16:27.283 UTC [2330] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:16:32.363 UTC [2339] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:16:37.445 UTC [2347] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:16:42.529 UTC [2355] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:16:47.612 UTC [2363] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:16:52.685 UTC [2371] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:16:57.767 UTC [2379] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:17:02.842 UTC [2388] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:17:07.935 UTC [2396] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:17:13.015 UTC [2404] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:17:18.107 UTC [2412] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:17:23.167 UTC [2420] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:17:28.253 UTC [2428] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:17:33.247 UTC [2437] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:17:38.325 UTC [2445] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:17:43.402 UTC [2453] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:17:48.475 UTC [2461] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:17:53.559 UTC [2469] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:17:58.638 UTC [2477] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:18:03.718 UTC [2486] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:18:08.805 UTC [2494] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:18:13.867 UTC [2502] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:18:18.933 UTC [2510] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:18:24.018 UTC [2518] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:18:29.102 UTC [2526] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:18:34.201 UTC [2535] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:18:39.295 UTC [2543] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:18:44.383 UTC [2551] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:18:49.454 UTC [2559] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:18:54.522 UTC [2567] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:18:59.599 UTC [2575] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:19:04.680 UTC [2584] FATAL:  database "vltrn_admin" does not exist
+dataroom-db-1     | 2025-07-04 18:19:09.758 UTC [2592] FATAL:  database "vltrn_admin" does not exist
+Gracefully stopping... (press Ctrl+C again to force)
+ Container vltrn-system-orchestrator-1  Stopping
+ Container vltrn-system-scout-warn-1  Stopping
+ Container vltrn-system-marketer-agent-1  Stopping
+ Container vltrn-system-orchestrator-1  Stopped
+ Container vltrn-system-marketer-agent-1  Stopped
+ Container vltrn-system-scout-warn-1  Stopped
+ Container vltrn-system-dataroom-db-1  Stopping
+ Container vltrn-system-dataroom-db-1  Stopped
+

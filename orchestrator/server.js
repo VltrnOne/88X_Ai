@@ -1,66 +1,84 @@
-require('dotenv').config();
+import 'dotenv/config';
+import express from 'express';
+import cors from 'cors';
+import db from './db.js';
+import bcrypt from 'bcrypt';
+import { sign as jwtSign, verify as jwtVerify } from 'jsonwebtoken';
+import { runAgentContainer } from './agent-runner.js';
 
-// Diagnostic trace can be removed now, but leaving it is fine for future debugging.
-console.log('--- BEGIN VLTRN DIAGNOSTIC TRACE ---');
-console.log('Verifying credentials as seen by the server...');
-console.log('POSTGRES_USER:', process.env.POSTGRES_USER);
-console.log('POSTGRES_PASSWORD:', process.env.POSTGRES_PASSWORD);
-console.log('POSTGRES_DB:', process.env.POSTGRES_DB);
-console.log('JWT_SECRET:', process.env.JWT_SECRET ? 'Loaded' : 'MISSING');
-console.log('--- END VLTRN DIAGNOSTIC TRACE ---');
-
-const express = require('express');
-const cors = require('cors');
-const db = require('./db');
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
+async function ensureSchema() {
+  console.log('[VLTRN-Orchestrator] Verifying Dataroom schema...');
+  const client = await db.connect();
+  try {
+    await client.query(`CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, email VARCHAR(255) UNIQUE NOT NULL, password_hash VARCHAR(255) NOT NULL, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP);`);
+    await client.query(`CREATE TABLE IF NOT EXISTS scout_warn_leads (id SERIAL PRIMARY KEY, notice_date DATE NOT NULL, company_name VARCHAR(255) NOT NULL, city VARCHAR(255) NOT NULL, employees_affected INT NOT NULL, scraped_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, UNIQUE(notice_date, company_name, city, employees_affected));`);
+    const testUser = await client.query("SELECT * FROM users WHERE email = 'jay@vltrn.agency'");
+    if (testUser.rows.length === 0) {
+      console.log('[VLTRN-Orchestrator] Test user not found. Creating test user...');
+      const passwordHash = await bcrypt.hash('password123', 10);
+      await client.query("INSERT INTO users (email, password_hash) VALUES ($1, $2)", ['jay@vltrn.agency', passwordHash]);
+      console.log('[VLTRN-Orchestrator] Test user created successfully.');
+    }
+  } finally {
+    client.release();
+    console.log('[VLTRN-Orchestrator] Schema verification complete. Dataroom is ready.');
+  }
+}
 
 const app = express();
 
-// CORRECTED: Updated CORS policy to accept multiple origins.
 const allowedOrigins = ['http://localhost:5173', 'http://localhost:5174'];
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  }
-}));
+app.use(cors({ origin: function (origin, callback) { if (!origin || allowedOrigins.indexOf(origin) !== -1) { callback(null, true); } else { callback(new Error('Not allowed by CORS')); } } }));
 app.use(express.json());
 
-app.get('/', (req, res) => {
-  res.json({ status: "VLTRN Orchestrator Online" });
-});
+const authenticateToken = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    if (token == null) return res.sendStatus(401);
+    jwtVerify(token, process.env.JWT_SECRET, (err, user) => {
+        if (err) return res.sendStatus(403);
+        req.user = user;
+        next();
+    });
+};
+
+app.get('/', (req, res) => res.json({ status: "VLTRN Orchestrator Online" }));
 
 app.post('/login', async (req, res) => {
-  console.log('Login endpoint hit');
+  console.log(`[TRACE] /login endpoint hit at ${new Date().toISOString()}`);
   const { email, password } = req.body;
-
   try {
     const result = await db.query('SELECT * FROM users WHERE email = $1', [email]);
-
     if (result.rows.length > 0) {
       const user = result.rows[0];
       const isValid = await bcrypt.compare(password, user.password_hash);
-
       if (isValid) {
-        const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-        res.json({ token });
-      } else {
-        res.status(401).json({ error: 'Invalid credentials' });
+        const token = jwtSign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        return res.json({ token });
       }
-    } else {
-      res.status(401).json({ error: 'Invalid credentials' });
     }
+    return res.status(401).json({ error: 'Invalid credentials' });
   } catch (err) {
     console.error('Error during login:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => {
-  console.log(`VLTRN Orchestrator is online on port ${PORT}.`);
-});
+app.get('/api/warn-notices', authenticateToken, async (req, res) => { /* ... */ });
+app.post('/api/missions', authenticateToken, async (req, res) => { /* ... */ });
+
+async function startServer() {
+  try {
+    await ensureSchema();
+    const PORT = process.env.PORT || 8080;
+    // --- THIS IS THE FINAL CORRECTION ---
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`VLTRN Orchestrator is online on port ${PORT}.`);
+    });
+  } catch (err) {
+    console.error("FATAL: Failed to initialize and start server:", err);
+    process.exit(1);
+  }
+}
+
+startServer();
