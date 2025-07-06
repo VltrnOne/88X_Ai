@@ -1,127 +1,68 @@
-// agents/marketer-enrich/index.js
+// File: ~/vltrn-system/agents/marketer-agent/index.js
+require('dotenv').config();   // ← MUST be first!
+
+const { query, pool } = require('./db'); // your ./db should export { query, pool }
 const axios = require('axios');
-const db = require('./db');
 
-// --- Validate Environment Variables ---
-const { GITHUB_PAT, BRIGHTDATA_API_TOKEN } = process.env;
-if (!GITHUB_PAT || !BRIGHTDATA_API_TOKEN) {
-    console.error('FATAL: Missing GITHUB_PAT or BRIGHTDATA_API_TOKEN environment variables.');
-    process.exit(1);
+async function ensureSchema() {
+  console.log('[marketer] Verifying Dataroom schema…');
+  const client = await pool.connect();
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS warn_notices (
+        id SERIAL PRIMARY KEY,
+        payload JSONB NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+    console.log('[marketer] Schema verified. Table "warn_notices" is ready.');
+  } finally {
+    client.release();
+  }
 }
 
-const githubApi = axios.create({
-    baseURL: 'https://api.github.com',
-    headers: { 'Authorization': `token ${GITHUB_PAT}` }
-});
-
-/**
- * STAGE 1: Attempt to find a public email on a user's GitHub profile.
- */
-async function enrichWithGitHub(lead) {
-    try {
-        console.log(`[GitHub] Searching for user: ${lead.full_name}`);
-        const searchResponse = await githubApi.get(`/search/users?q=${encodeURIComponent(lead.full_name)}`);
-
-        if (searchResponse.data.items.length === 0) {
-            console.log(`[GitHub] No users found for ${lead.full_name}.`);
-            return null;
-        }
-
-        // For simplicity, we check the first result. A more advanced version could iterate.
-        const userUrl = searchResponse.data.items[0].url;
-        const userResponse = await githubApi.get(userUrl);
-        const userData = userResponse.data;
-
-        // Check if the user's company matches and if they have a public email.
-        if (userData.company && userData.company.toLowerCase().includes(lead.company_name.toLowerCase()) && userData.email) {
-            console.log(`[GitHub] SUCCESS: Found matching profile with email for ${lead.full_name}.`);
-            return userData.email;
-        } else {
-             console.log(`[GitHub] User found, but company or email did not match.`);
-        }
-
-    } catch (error) {
-        console.error(`[GitHub] Error during enrichment for ${lead.full_name}:`, error.message);
-    }
-    return null;
-}
-
-/**
- * STAGE 2: If GitHub fails, use a SERP API to search Google for a public email.
- */
-async function enrichWithGoogle(lead) {
-    console.log(`[Google] Searching for: ${lead.full_name} at ${lead.company_name}`);
-    const query = `"<span class="math-inline">\{lead\.full\_name\}" "</span>{lead.company_name}" email OR contact`;
-
-    try {
-        const response = await axios.post('https://api.brightdata.com/serp/req', {
-            country: 'US',
-            query: query
-        }, {
-            headers: { 'Authorization': `Bearer ${BRIGHTDATA_API_TOKEN}` }
-        });
-
-        // Regular expression to find email addresses
-        const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/gi;
-        const responseText = JSON.stringify(response.data);
-        const emailsFound = responseText.match(emailRegex);
-
-        if (emailsFound && emailsFound.length > 0) {
-            // Filter out common non-contact emails
-            const validEmail = emailsFound.find(email => !email.includes('example.com') && !email.includes('wixpress.com'));
-            if (validEmail) {
-                console.log(`[Google] SUCCESS: Found potential email: ${validEmail}`);
-                return validEmail;
-            }
-        }
-         console.log(`[Google] No email found in search results.`);
-
-    } catch (error) {
-        console.error('[Google] Error during SERP API call:', error.message);
-    }
-    return null;
-}
-
-/**
- * MAIN FUNCTION: Fetches leads and orchestrates the enrichment cascade.
- */
 async function main() {
-    console.log('--- Marketer-Enrich Agent mission START ---');
-    const client = await db.connect();
-    try {
-        // Fetch 5 leads from the 'scout_warn_leads' table that do not have an email.
-        // In a real system, you'd also check other lead tables.
-        const res = await client.query("SELECT id, full_name, company_name FROM scout_warn_leads WHERE contact_email IS NULL LIMIT 5");
-        const leads = res.rows;
+  console.log('[marketer] Agent starting full enrichment process…');
 
-        if (leads.length === 0) {
-            console.log('No unenriched leads found. Mission complete.');
-            return;
-        }
+  // 1) make sure our table exists
+  await ensureSchema();
 
-        console.log(`Found ${leads.length} leads to enrich.`);
+  // 2) fetch one notice from scout
+  console.log('[marketer] Fetching 1 lead from Dataroom for enrichment test…');
+  const { rows } = await query('SELECT * FROM scout_warn_leads LIMIT 1');
+  if (rows.length === 0) {
+    console.log('[marketer] No leads found in Dataroom to process.');
+    await pool.end();
+    return;
+  }
 
-        for (const lead of leads) {
-            let email = await enrichWithGitHub(lead);
-            if (!email) {
-                email = await enrichWithGoogle(lead);
-            }
+  const lead = rows[0];
+  console.log(`[marketer] Processing lead: ${lead.company_name}`);
 
-            if (email) {
-                await client.query("UPDATE scout_warn_leads SET contact_email = $1 WHERE id = $2", [email, lead.id]);
-                console.log(`SUCCESS: Updated lead ${lead.full_name} with email ${email}`);
-            } else {
-                console.log(`FAILURE: Could not find an email for lead ${lead.full_name}.`);
-                // Optionally, mark as 'enrichment_failed' to avoid re-running
-                // await client.query("UPDATE scout_warn_leads SET enrichment_status = 'failed' WHERE id = $1", [lead.id]);
-            }
-            console.log('---');
-        }
+  // 3) build your enrichment payload (here just echoing the row)
+  const payload = {
+    id:           lead.id,
+    notice_date:  lead.notice_date,
+    company_name: lead.company_name,
+    city:         lead.city,
+    employees_affected: lead.employees_affected,
+    scraped_at:   lead.scraped_at
+  };
 
-    } finally {
-        client.release();
-        console.log('Database client released. Mission END.');
-    }
+  // (optional) call external APIs here…
+
+  // 4) insert payload JSON
+  const res = await query({
+    text: `INSERT INTO warn_notices (payload) VALUES ($1)`,
+    values: [payload]
+  });
+  console.log('[marketer] Inserted payload into warn_notices.');
+
+  await pool.end();
+  console.log('[marketer] Dataroom connection closed. Mission complete.');
 }
 
-main().catch(err => console.error('A critical error occurred in the main function:', err));
+main().catch(err => {
+  console.error('[marketer] An error occurred:', err.message);
+  process.exit(1);
+});

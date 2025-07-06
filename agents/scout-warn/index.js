@@ -1,90 +1,92 @@
-// CORRECTED: This line MUST be first to load the .env file before any other code runs.
+// ~/vltrn-system/agents/scout-warn/index.js
 require('dotenv').config();
+import axios from 'axios';
+import cheerio from 'cheerio';
+import { pool } from './db.js';
 
-const axios = require('axios');
-const cheerio = require('cheerio');
-const db = require('./db.js');
-
-const TARGET_URL = 'https://edd.ca.gov/en/jobs_and_training/layoff_services_warn/';
+const TARGET_URL =
+  'https://edd.ca.gov/en/jobs_and_training/layoff_services_warn/';
 
 async function ensureSchema() {
-    console.log('[scout-warn] Verifying Dataroom schema...');
-    const client = await db.connect();
-    try {
-        await client.query(`
-            CREATE TABLE IF NOT EXISTS scout_warn_leads (
-                id SERIAL PRIMARY KEY,
-                notice_date DATE NOT NULL,
-                company_name VARCHAR(255) NOT NULL,
-                city VARCHAR(255) NOT NULL,
-                employees_affected INT NOT NULL,
-                scraped_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(notice_date, company_name, city, employees_affected)
-            );
-        `);
-        console.log('[scout-warn] Schema verified. Table "scout_warn_leads" is ready.');
-    } finally {
-        client.release();
-    }
+  console.log('[scout-warn] Verifying table...');
+  const client = await pool.connect();
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS scout_warn_leads (
+        id SERIAL PRIMARY KEY,
+        notice_date DATE NOT NULL,
+        company_name TEXT NOT NULL,
+        city TEXT NOT NULL,
+        employees_affected INT NOT NULL,
+        scraped_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(notice_date, company_name, city, employees_affected)
+      );
+    `);
+    console.log('[scout-warn] Table is ready.');
+  } finally {
+    client.release();
+  }
 }
 
 async function runScoutWarnMission() {
-    console.log(`[scout-warn] Mission starting. Target: ${TARGET_URL}`);
-    const client = await db.connect();
+  console.log('[scout-warn] Fetching page…');
+  const { data: html } = await axios.get(TARGET_URL);
+  const $ = cheerio.load(html);
+  const notices = [];
 
-    try {
-        const { data } = await axios.get(TARGET_URL);
-        const $ = cheerio.load(data);
-        const notices = [];
-        $('table tbody tr').each((i, element) => {
-            const columns = $(element).find('td');
-            if (columns.length >= 4) {
-                const notice = {
-                    notice_date: new Date($(columns[2]).text().trim()),
-                    company_name: $(columns[0]).text().trim(),
-                    city: $(columns[1]).text().trim(),
-                    employees_affected: parseInt($(columns[3]).text().trim(), 10) || 0,
-                };
-                notices.push(notice);
-            }
-        });
-        console.log(`[scout-warn] Successfully scraped ${notices.length} notices.`);
+  $('table tbody tr').each((i, row) => {
+    const cols = $(row).find('td');
+    if (cols.length < 4) return;
+    const d = new Date($(cols[0]).text().trim());
+    if (isNaN(d)) return;
+    notices.push({
+      notice_date: d.toISOString().slice(0, 10),
+      company_name: $(cols[1]).text().trim(),
+      city: $(cols[2]).text().trim(),
+      employees_affected:
+        parseInt($(cols[3]).text().replace(/\D/g, ''), 10) || 0,
+    });
+  });
 
-        if (notices.length > 0) {
-            console.log('[scout-warn] Inserting new notices into Dataroom...');
-            let insertedCount = 0;
-            for (const notice of notices) {
-                const query = {
-                    text: `INSERT INTO scout_warn_leads(notice_date, company_name, city, employees_affected)
-                           VALUES($1, $2, $3, $4)
-                           ON CONFLICT (notice_date, company_name, city, employees_affected) DO NOTHING;`,
-                    values: [notice.notice_date, notice.company_name, notice.city, notice.employees_affected],
-                };
-                const result = await client.query(query);
-                if (result.rowCount > 0) {
-                    insertedCount++;
-                    console.log(`  -> Inserted notice for '${notice.company_name}'`);
-                }
-            }
-            console.log(`[scout-warn] ${insertedCount} new records inserted into the Dataroom.`);
-        }
+  console.log(`[scout-warn] Scraped ${notices.length} notices.`);
 
-    } catch (error) {
-        console.error('[scout-warn] A critical error occurred during the mission:', error.message);
-        process.exit(1);
-    } finally {
-        await client.release();
-        console.log('[scout-warn] Dataroom client released.');
+  if (!notices.length) {
+    console.log('[scout-warn] No new data → exiting.');
+    return;
+  }
+
+  const client = await pool.connect();
+  try {
+    let inserted = 0;
+    for (const n of notices) {
+      const res = await client.query(
+        `
+        INSERT INTO scout_warn_leads
+          (notice_date, company_name, city, employees_affected)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (notice_date, company_name, city, employees_affected) DO NOTHING
+      `,
+        [n.notice_date, n.company_name, n.city, n.employees_affected]
+      );
+      if (res.rowCount) {
+        inserted++;
+        console.log(`[scout-warn] Inserted ${n.company_name}`);
+      }
     }
-    console.log('[scout-warn] Mission complete.');
+    console.log(`[scout-warn] ${inserted} new records.`);
+  } finally {
+    client.release();
+  }
 }
 
 (async () => {
-    try {
-        await ensureSchema();
-        await runScoutWarnMission();
-    } catch (err) {
-        console.error("[scout-warn] Failed to initialize and run mission:", err.message);
-        process.exit(1);
-    }
+  try {
+    await ensureSchema();
+    await runScoutWarnMission();
+    console.log('[scout-warn] Done.');
+    process.exit(0);
+  } catch (err) {
+    console.error('[scout-warn] ERROR', err);
+    process.exit(1);
+  }
 })();

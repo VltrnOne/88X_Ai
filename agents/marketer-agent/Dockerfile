@@ -1,15 +1,20 @@
-# Dockerfile
+# Stage 1: install deps
+FROM node:20-alpine AS builder
+WORKDIR /usr/src/app
 
-# --- STAGE 1: Build Stage ---
-    FROM node:20-alpine AS builder
-    WORKDIR /usr/src/app
-    COPY package*.json ./
-    RUN npm ci --only=production
-    COPY . .
-    
-    # --- STAGE 2: Production Stage ---
-    FROM node:20-alpine
-    WORKDIR /usr/src/app
-    COPY --from=builder /usr/src/app/node_modules ./node_modules
-    COPY --from=builder /usr/src/app/ .
-    CMD [ "node", "index.js" ]
+# Copy only package.json + lockfile, install production deps
+COPY package*.json ./
+RUN npm ci --only=production
+
+# Stage 2: final image
+FROM node:20-alpine
+WORKDIR /usr/src/app
+
+# Pull in prod dependencies from builder
+COPY --from=builder /usr/src/app/node_modules ./node_modules
+
+# Copy your code
+COPY . .
+
+# Run your agent
+CMD ["node", "index.js"]
