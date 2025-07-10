@@ -1,54 +1,61 @@
-// agents/intent-parser/index.js v1.1
+// agents/intent-parser/index.js v2.0
+// This service now functions as both the Intent Parser and the Orchestrator.
 import express from 'express';
+import { $ } from 'execa';
 
 const PORT = 4000;
 const app = express();
 app.use(express.json());
 
-/**
- * Parses a natural language prompt to extract a structured mission plan.
- * This is a simplified simulation of NLP/LLM logic.
- * @param {string} prompt - The user's natural language input.
- * @returns {object} A structured mission plan in JSON format.
- */
+// ... (The parsePrompt function remains the same)
 function parsePrompt(prompt) {
   const lowerCasePrompt = prompt.toLowerCase();
   const missionPlan = {
-    action: "SEARCH_LAYOFF_EVENTS", // Default action
+    action: "SEARCH_LAYOFF_EVENTS",
     target_entities: [],
     filters: {}
   };
-
-  // Simple keyword matching to identify entities and filters
-  if (lowerCasePrompt.includes('tech')) {
-    missionPlan.filters.industry = 'Technology';
-  }
-  if (lowerCasePrompt.includes('california')) {
-    missionPlan.filters.location = 'California';
-  }
-  if (lowerCasePrompt.includes('last month')) {
-    missionPlan.filters.date_range = 'past_30_days';
-  }
-  if (lowerCasePrompt.includes('companies')) {
-    missionPlan.target_entities.push('company');
-  }
-
+  if (lowerCasePrompt.includes('tech')) missionPlan.filters.industry = 'Technology';
+  if (lowerCasePrompt.includes('california')) missionPlan.filters.location = 'California';
+  if (lowerCasePrompt.includes('last month')) missionPlan.filters.date_range = 'past_30_days';
+  if (lowerCasePrompt.includes('companies')) missionPlan.target_entities.push('company');
   return missionPlan;
 }
 
-app.post('/parse', (req, res) => {
+/**
+ * Executes an agent based on a mission plan.
+ * @param {object} missionPlan - A structured mission plan.
+ */
+async function executeMission(missionPlan) {
+    console.log(`[Orchestrator] Executing mission: ${missionPlan.action}`);
+    if (missionPlan.action === 'SEARCH_LAYOFF_EVENTS') {
+        // We use 'docker compose run' which is ideal for one-off tasks.
+        // The '--rm' flag cleans up the container after it exits.
+        // We run this command from the project root, so we adjust paths.
+        const agentProcess = $({ stdio: 'inherit', cwd: '../..' })`docker compose run --rm scout-warn`;
+        await agentProcess;
+        console.log(`[Orchestrator] Agent scout-warn finished its mission.`);
+    }
+}
+
+// Endpoint to parse a prompt.
+app.post('/api/missions/parse', (req, res) => {
   const userPrompt = req.body.prompt;
   console.log(`[Intent-Parser] Received prompt: "${userPrompt}"`);
-
-  // Call the new parsing function
   const structuredMissionPlan = parsePrompt(userPrompt);
-
-  console.log('[Intent-Parser] Generated structured mission plan:');
-  console.log(JSON.stringify(structuredMissionPlan, null, 2));
-
   res.json(structuredMissionPlan);
 });
 
+// NEW: Endpoint to execute a mission plan.
+app.post('/api/missions/execute', async (req, res) => {
+    const missionPlan = req.body;
+    console.log('[Orchestrator] Received mission execution request.');
+    res.status(202).json({ message: "Mission execution started.", mission: missionPlan });
+
+    // Execute the mission asynchronously.
+    executeMission(missionPlan);
+});
+
 app.listen(PORT, () => {
-  console.log(`[Intent-Parser] API server listening on http://localhost:${PORT}`);
+  console.log(`[Intent-Parser/Orchestrator] API server listening on http://localhost:${PORT}`);
 });

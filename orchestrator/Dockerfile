@@ -1,22 +1,15 @@
-# ~/vltrn-system/orchestrator/Dockerfile
+# Use an Alpine-based Node for smaller image
+FROM node:20-alpine
 
-# Stage 1: Build
-FROM node:20-alpine AS builder
-WORKDIR /usr/src/app
+# inside container, work in /usr/src/app/orchestrator
+WORKDIR /usr/src/app/orchestrator
 
-COPY package*.json ./
-RUN npm ci
-RUN npm install dotenv
+# copy over package files & install  
+COPY package.json package-lock.json ./
+RUN npm install
+
+# now copy the rest of your code
 COPY . .
 
-# Stage 2: Production
-FROM node:20-alpine
-WORKDIR /usr/src/app
-
-RUN apk add --no-cache docker-cli
-
-COPY --from=builder /usr/src/app/node_modules ./node_modules
-COPY --from=builder /usr/src/app ./
-
-EXPOSE 8080
-CMD ["node", "server.js"]
+# default to the production start
+CMD ["npm", "start"]

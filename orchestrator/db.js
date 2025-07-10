@@ -1,10 +1,10 @@
-// ~/vltrn-system/orchestrator/db.js
 import pg from 'pg';
 const { Pool } = pg;
 
+// The pool will use the environment variables automatically
 const pool = new Pool({
   host: process.env.DB_HOST,
-  port: parseInt(process.env.DB_PORT, 10),
+  port: process.env.DB_PORT,
   user: process.env.POSTGRES_USER,
   password: process.env.POSTGRES_PASSWORD,
   database: process.env.POSTGRES_DB,
@@ -12,7 +12,8 @@ const pool = new Pool({
 });
 
 pool.on('error', (err) => {
-  console.error('Unexpected PG client error', err);
+  console.error('[VLTRN-DB] Unexpected PG client error', err);
+  process.exit(-1);
 });
 
 export default {

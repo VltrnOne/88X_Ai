@@ -1,99 +1,109 @@
-// ~/vltrn-system/agents/marketer-agent/index.js
+// agents/marketer-agent/index.js
 require('dotenv').config();
-import axios from 'axios';
-import { Pool } from 'pg';
+const axios = require('axios');
+const { pool } = require('./db');
 
-const pool = new Pool({
-  host: process.env.DB_HOST,
-  port: parseInt(process.env.DB_PORT, 10),
-  user: process.env.POSTGRES_USER,
-  password: process.env.POSTGRES_PASSWORD,
-  database: process.env.POSTGRES_DB,
-});
+const GOOGLE_API_KEY     = process.env.GOOGLE_API_KEY;
+const SEARCH_ENGINE_ID   = process.env.SEARCH_ENGINE_ID;
+const GITHUB_PAT         = process.env.GITHUB_PAT;
 
-async function ensureSchema() {
-  console.log('[marketer-agent] Verifying table...');
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS warn_notices (
-      id SERIAL PRIMARY KEY,
-      payload JSONB NOT NULL,
-      created_at TIMESTAMPTZ DEFAULT NOW()
-    );
-  `);
-  console.log('[marketer-agent] Table is ready.');
-}
-
-async function getCompanyDomain(company) {
-  console.log(`[marketer-agent] Searching domain for ${company}`);
-  const url = `https://www.googleapis.com/customsearch/v1?key=${process.env.GOOGLE_API_KEY}&cx=${process.env.SEARCH_ENGINE_ID}&q=${encodeURIComponent(
-    company
-  )}`;
+async function getCompanyDomain(companyName) {
+  console.log(`[VLTRN-Marketer][Google] Querying domain for "${companyName}"…`);
+  const url = 'https://www.googleapis.com/customsearch/v1'
+            + `?key=${GOOGLE_API_KEY}`
+            + `&cx=${SEARCH_ENGINE_ID}`
+            + `&q=${encodeURIComponent(companyName)}`;
   try {
-    const { data } = await axios.get(url);
-    const link = data.items?.[0]?.link;
-    if (!link) return null;
-    const hostname = new URL(link).hostname.replace(/^www\./, '');
-    console.log(`[marketer-agent] Found domain: ${hostname}`);
-    return hostname;
+    const res = await axios.get(url);
+    const items = res.data.items || [];
+    if (!items.length) {
+      console.log(`[VLTRN-Marketer][Google] No results for "${companyName}".`);
+      return null;
+    }
+    // take first link and normalize hostname
+    const link = new URL(items[0].link).hostname.replace(/^www\./,'');
+    console.log(`[VLTRN-Marketer][Google] Found domain: ${link}`);
+    return link;
   } catch (err) {
-    console.error('[marketer-agent] Google API error', err.message);
+    console.error(`[VLTRN-Marketer][Google] API error:`, err.message);
     return null;
   }
 }
 
 async function getContactsFromGitHub(domain) {
   if (!domain) return [];
-  console.log(`[marketer-agent] Searching GitHub commits for ${domain}`);
+  console.log(`[VLTRN-Marketer][GitHub] Searching commits for domain: ${domain}`);
   const url = `https://api.github.com/search/commits?q=author-email:${domain}`;
   try {
     const res = await axios.get(url, {
       headers: {
-        Accept: 'application/vnd.github.cloak-preview',
-        Authorization: `token ${process.env.GITHUB_PAT}`,
-      },
+        'Authorization': `token ${GITHUB_PAT}`,
+        'Accept':        'application/vnd.github.v3+json'
+      }
     });
     const commits = res.data.items || [];
-    const emails = new Set();
-    commits.forEach((c) => {
-      const email = c.commit?.author?.email;
-      if (email) emails.add(email);
-    });
-    return Array.from(emails);
+    const contacts = commits.map(c => ({
+      name:   c.commit.author.name,
+      email:  c.commit.author.email,
+      source: c.sha.slice(0,7)
+    }));
+    // dedupe by email
+    return [...new Map(contacts.map(c=>[c.email,c])).values()];
   } catch (err) {
-    console.error('[marketer-agent] GitHub API error', err.message);
+    console.error(`[VLTRN-Marketer][GitHub] API error:`, err.message);
     return [];
   }
 }
 
-async function main() {
+async function ensureSchema() {
+  console.log('[VLTRN-Marketer] Verifying warn_notices table…');
+  const client = await pool.connect();
   try {
-    await ensureSchema();
-
-    const { rows } = await pool.query(
-      'SELECT * FROM scout_warn_leads ORDER BY scraped_at DESC LIMIT 1'
-    );
-    if (!rows.length) {
-      console.log('[marketer-agent] No leads → exiting.');
-      return;
-    }
-    const lead = rows[0];
-    console.log(`[marketer-agent] Enriching ${lead.company_name}`);
-
-    const domain = await getCompanyDomain(lead.company_name);
-    const contacts = await getContactsFromGitHub(domain);
-
-    const payload = { ...lead, domain, contacts };
-    await pool.query('INSERT INTO warn_notices (payload) VALUES ($1)', [
-      payload,
-    ]);
-    console.log('[marketer-agent] Inserted enriched payload.');
-  } catch (err) {
-    console.error('[marketer-agent] FATAL', err);
-    process.exit(1);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS warn_notices (
+        id          SERIAL PRIMARY KEY,
+        payload     JSONB NOT NULL,
+        created_at  TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+    console.log('[VLTRN-Marketer] Table "warn_notices" is ready.');
   } finally {
-    await pool.end();
-    console.log('[marketer-agent] Done.');
+    client.release();
   }
 }
 
-main();
+async function main() {
+  console.log('[VLTRN-Marketer] Starting enrichment…');
+  await ensureSchema();
+
+  const client = await pool.connect();
+  try {
+    const { rows } = await client.query(
+      `SELECT * FROM scout_warn_leads LIMIT 1`
+    );
+    if (!rows.length) {
+      console.log('[VLTRN-Marketer] No rows in scout_warn_leads → exiting.');
+      return;
+    }
+    const lead = rows[0];
+    console.log(`[VLTRN-Marketer] Processing lead: ${lead.company_name}`);
+
+    const domain   = await getCompanyDomain(lead.company_name);
+    const contacts = await getContactsFromGitHub(domain);
+
+    const payload = { ...lead, domain, contacts };
+    await client.query(
+      `INSERT INTO warn_notices (payload) VALUES ($1)`, 
+      [payload]
+    );
+    console.log('[VLTRN-Marketer] Inserted enriched payload into warn_notices.');
+  } finally {
+    client.release();
+    console.log('[VLTRN-Marketer] Done.');
+  }
+}
+
+main().catch(err => {
+  console.error('[VLTRN-Marketer] Fatal error:', err);
+  process.exit(1);
+});

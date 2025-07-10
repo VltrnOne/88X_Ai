@@ -1,16 +1,19 @@
-// ~/vltrn-system/orchestrator/.eslintrc.cjs
-module.exports = {
-  env: {
-    node: true,
-    es2021: true,
-    browser: false,
+import globals from "globals";
+import js from "@eslint/js";
+
+export default [
+  {
+    ignores: ["node_modules/**"],
   },
-  parserOptions: {
-    ecmaVersion: 'latest',
-    sourceType: 'module',
-  },
-  extends: ['eslint:recommended'],
-  rules: {
-    'no-unused-vars': 'warn',
-  },
-};
+  {
+    files: ["**/*.js"],
+    languageOptions: {
+      ecmaVersion: "latest",
+      sourceType: "module",
+      globals: {
+        ...globals.node
+      }
+    },
+    rules: js.configs.recommended.rules
+  }
+];

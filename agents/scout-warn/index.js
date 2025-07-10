@@ -1,28 +1,27 @@
-// ~/vltrn-system/agents/scout-warn/index.js
+// agents/scout-warn/index.js
 require('dotenv').config();
-import axios from 'axios';
-import cheerio from 'cheerio';
-import { pool } from './db.js';
+const axios  = require('axios');
+const cheerio = require('cheerio');
+const { pool } = require('./db');
 
-const TARGET_URL =
-  'https://edd.ca.gov/en/jobs_and_training/layoff_services_warn/';
+const TARGET_URL = 'https://edd.ca.gov/en/jobs_and_training/layoff_services_warn/';
 
 async function ensureSchema() {
-  console.log('[scout-warn] Verifying table...');
+  console.log('[scout-warn] Verifying Dataroom schema…');
   const client = await pool.connect();
   try {
     await client.query(`
       CREATE TABLE IF NOT EXISTS scout_warn_leads (
-        id SERIAL PRIMARY KEY,
-        notice_date DATE NOT NULL,
-        company_name TEXT NOT NULL,
-        city TEXT NOT NULL,
-        employees_affected INT NOT NULL,
-        scraped_at TIMESTAMPTZ DEFAULT NOW(),
+        id               SERIAL PRIMARY KEY,
+        notice_date      DATE      NOT NULL,
+        company_name     TEXT      NOT NULL,
+        city             TEXT      NOT NULL,
+        employees_affected INT      NOT NULL,
+        scraped_at       TIMESTAMPTZ DEFAULT NOW(),
         UNIQUE(notice_date, company_name, city, employees_affected)
       );
     `);
-    console.log('[scout-warn] Table is ready.');
+    console.log('[scout-warn] Table "scout_warn_leads" is ready.');
   } finally {
     client.release();
   }
@@ -37,14 +36,14 @@ async function runScoutWarnMission() {
   $('table tbody tr').each((i, row) => {
     const cols = $(row).find('td');
     if (cols.length < 4) return;
-    const d = new Date($(cols[0]).text().trim());
-    if (isNaN(d)) return;
+    const dateText = $(cols[0]).text().trim();
+    const d = new Date(dateText);
+    if (isNaN(d.getTime())) return;
     notices.push({
-      notice_date: d.toISOString().slice(0, 10),
-      company_name: $(cols[1]).text().trim(),
-      city: $(cols[2]).text().trim(),
-      employees_affected:
-        parseInt($(cols[3]).text().replace(/\D/g, ''), 10) || 0,
+      notice_date:      d.toISOString().slice(0,10),
+      company_name:     $(cols[1]).text().trim(),
+      city:             $(cols[2]).text().trim(),
+      employees_affected: parseInt($(cols[3]).text().replace(/\D/g, ''), 10) || 0,
     });
   });
 
@@ -55,25 +54,25 @@ async function runScoutWarnMission() {
     return;
   }
 
+  console.log('[scout-warn] Inserting new notices into Dataroom…');
   const client = await pool.connect();
   try {
     let inserted = 0;
     for (const n of notices) {
       const res = await client.query(
-        `
-        INSERT INTO scout_warn_leads
-          (notice_date, company_name, city, employees_affected)
-        VALUES ($1, $2, $3, $4)
-        ON CONFLICT (notice_date, company_name, city, employees_affected) DO NOTHING
-      `,
+        `INSERT INTO scout_warn_leads(
+           notice_date, company_name, city, employees_affected
+         ) VALUES($1,$2,$3,$4)
+           ON CONFLICT (notice_date, company_name, city, employees_affected)
+           DO NOTHING;`,
         [n.notice_date, n.company_name, n.city, n.employees_affected]
       );
       if (res.rowCount) {
         inserted++;
-        console.log(`[scout-warn] Inserted ${n.company_name}`);
+        console.log(`[scout-warn] Inserted notice for "${n.company_name}"`);
       }
     }
-    console.log(`[scout-warn] ${inserted} new records.`);
+    console.log(`[scout-warn] ${inserted} new records inserted.`);
   } finally {
     client.release();
   }

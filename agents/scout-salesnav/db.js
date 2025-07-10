@@ -1,16 +1,14 @@
-const { Pool } = require('pg');
+import pg from 'pg';
+const { Pool } = pg;
 
+// This pool will use the environment variables from docker-compose.yaml
+// (POSTGRES_USER, POSTGRES_DB, POSTGRES_PASSWORD) and the service name 'dataroom-db' for the host.
 const pool = new Pool({
-    user: process.env.DB_USER,
-    host: process.env.DB_HOST,
-    database: process.env.DB_NAME,
-    password: process.env.DB_PASSWORD,
-    port: process.env.DB_PORT,
+  host: 'dataroom-db',
+  database: process.env.POSTGRES_DB,
+  user: process.env.POSTGRES_USER,
+  password: process.env.POSTGRES_PASSWORD,
+  port: 5432,
 });
 
-// --- CORRECTED EXPORTS ---
-// We now export the pool's `connect` function directly, along with the query helper.
-module.exports = {
-    query: (text, params) => pool.query(text, params),
-    connect: () => pool.connect(),
-};
+export default pool;

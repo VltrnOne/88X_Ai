@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '../api/apiClient';
-import './WarnTable.css'; // We will create this file next for basic styling
+import './WarnTable.css';
 
 const WarnTable = () => {
   const [notices, setNotices] = useState([]);
@@ -13,7 +13,7 @@ const WarnTable = () => {
         const response = await apiClient.get('/api/warn-notices');
         setNotices(response.data);
       } catch (err) {
-        setError('Failed to fetch WARN notices. Please try again later.');
+        setError('Failed to fetch WARN notices. Please ensure you are logged in and the backend is running.');
         console.error(err);
       } finally {
         setIsLoading(false);
@@ -28,7 +28,7 @@ const WarnTable = () => {
   }
 
   if (error) {
-    return <p style={{ color: 'red' }}>{error}</p>;
+    return <p style={{ color: '#ff6b6b' }}>{error}</p>;
   }
 
   return (
@@ -55,7 +55,7 @@ const WarnTable = () => {
             ))
           ) : (
             <tr>
-              <td colSpan="4">No WARN notices found.</td>
+              <td colSpan="4">No new WARN notices found in the Dataroom.</td>
             </tr>
           )}
         </tbody>

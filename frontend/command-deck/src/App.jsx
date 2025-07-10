@@ -1,22 +1,15 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import LoginPage      from './components/LoginPage';
-import DashboardPage  from './components/DashboardPage';
-import ProtectedRoute from './components/ProtectedRoute';
+import DashboardPage from './components/DashboardPage';
 
 function App() {
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
+      {/* The Dashboard is now the main route at the root path */}
+      <Route path="/" element={<DashboardPage />} />
 
-      <Route path="/dashboard" element={
-        <ProtectedRoute>
-          <DashboardPage />
-        </ProtectedRoute>
-      } />
-
-      {/* anything else goes home */}
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      {/* Redirect any other unknown path to the main dashboard */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

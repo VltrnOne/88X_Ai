@@ -1,12 +1,15 @@
 {
-  "name": "VLTRN MVP",
-  "dockerComposeFile": [ "docker-compose.yaml" ],
+  "name": "vltrn-system",
+  "dockerComposeFile": ["../docker-compose.yaml"],
   "service": "orchestrator",
-  "workspaceFolder": "/workspace",
-  "forwardPorts": [ 8080, 5173 ],
-  "extensions": [
-    "ms-azuretools.vscode-docker",
-    "ms-vscode.remote-repositories"
-  ],
-  "postCreateCommand": "docker compose up -d --build"
+  // point VS Code at your code inside the container
+  "workspaceFolder": "/usr/src/app/orchestrator",
+  // after bind-mounting, install each service’s deps
+  "postCreateCommand": "npm --prefix orchestrator install && npm --prefix frontend/command-deck install && npm --prefix agents/scout-warn install && npm --prefix agents/marketer-agent install",
+  "forwardPorts": [5173, 8080],
+  "customizations": {
+    "vscode": {
+      "extensions": ["esbenp.prettier-vscode", "dbaeumer.vscode-eslint"]
+    }
+  }
 }
