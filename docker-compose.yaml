@@ -1,4 +1,4 @@
-# docker-compose.yaml v4.0 - Full stack with Intent Parser
+# docker-compose.yaml v4.1 - Final Integrated Stack
 
 services:
   dataroom-db:
@@ -18,27 +18,33 @@ services:
       timeout: 5s
       retries: 5
 
-  scout-warn:
-    build: ./agents/scout-warn
-    image: vltrn/scout-warn:1.0.0
-    env_file: .env
-    depends_on:
-      dataroom-db:
-        condition: service_healthy
-
-  marketer-agent:
-    build: ./agents/marketer-agent
-    image: vltrn/marketer-agent:1.0.0
-    env_file: .env
-    depends_on:
-      dataroom-db:
-        condition: service_healthy
-  
   intent-parser:
     build: ./agents/intent-parser
     image: vltrn/intent-parser:1.0.0
     ports:
       - "4000:4000"
+    # This service must have access to the docker socket to launch other agents
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      dataroom-db:
+        condition: service_healthy
+
+  scout-warn:
+    build: ./agents/scout-warn
+    image: vltrn/scout-warn:1.0.0
+    env_file: .env
+    # This service is run on-demand by the orchestrator, so we don't start it automatically
+    deploy:
+      replicas: 0
+
+  marketer-agent:
+    build: ./agents/marketer-agent
+    image: vltrn/marketer-agent:1.0.0
+    env_file: .env
+    # This service is also run on-demand
+    deploy:
+      replicas: 0
 
 volumes:
   dataroom-data:

@@ -1,61 +1,88 @@
-// agents/intent-parser/index.js v2.0
-// This service now functions as both the Intent Parser and the Orchestrator.
+// agents/intent-parser/index.js
 import express from 'express';
 import { $ } from 'execa';
+import Ajv from 'ajv';
+import fs from 'fs';
+import path from 'path';
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { generate } from './llmClient.js';
 
-const PORT = 4000;
+dotenv.config();
+
+// ESM __dirname boilerplate
+const __filename = fileURLToPath(import.meta.url);
+const __dirname  = path.dirname(__filename);
+
+// Load & compile JSON schema
+const schema = JSON.parse(
+  fs.readFileSync(path.join(__dirname, 'schemas', 'mission.schema.json'), 'utf8')
+);
+const validate = new Ajv().compile(schema);
+
 const app = express();
 app.use(express.json());
+const PORT = process.env.PORT || 4000;
 
-// ... (The parsePrompt function remains the same)
-function parsePrompt(prompt) {
-  const lowerCasePrompt = prompt.toLowerCase();
-  const missionPlan = {
-    action: "SEARCH_LAYOFF_EVENTS",
-    target_entities: [],
-    filters: {}
-  };
-  if (lowerCasePrompt.includes('tech')) missionPlan.filters.industry = 'Technology';
-  if (lowerCasePrompt.includes('california')) missionPlan.filters.location = 'California';
-  if (lowerCasePrompt.includes('last month')) missionPlan.filters.date_range = 'past_30_days';
-  if (lowerCasePrompt.includes('companies')) missionPlan.target_entities.push('company');
-  return missionPlan;
-}
+// --- Healthcheck ---
+app.get('/health', (_req, res) => {
+  res.json({ status: 'OK' });
+});
 
-/**
- * Executes an agent based on a mission plan.
- * @param {object} missionPlan - A structured mission plan.
- */
-async function executeMission(missionPlan) {
-    console.log(`[Orchestrator] Executing mission: ${missionPlan.action}`);
-    if (missionPlan.action === 'SEARCH_LAYOFF_EVENTS') {
-        // We use 'docker compose run' which is ideal for one-off tasks.
-        // The '--rm' flag cleans up the container after it exits.
-        // We run this command from the project root, so we adjust paths.
-        const agentProcess = $({ stdio: 'inherit', cwd: '../..' })`docker compose run --rm scout-warn`;
-        await agentProcess;
-        console.log(`[Orchestrator] Agent scout-warn finished its mission.`);
+// --- 1) Parse with LLM ---
+app.post('/api/missions/parse', async (req, res) => {
+  const { prompt, provider } = req.body;
+  if (typeof prompt !== 'string' || !provider) {
+    return res.status(400).json({ error: 'Request must include "prompt" (string) and "provider" (openai|gemini|venice).' });
+  }
+
+  try {
+    // Call the correct LLM
+    const raw = await generate(prompt, provider);
+    const missionPlan = JSON.parse(raw.trim());
+
+    // Validate JSON against schema
+    const valid = validate(missionPlan);
+    if (!valid) {
+      return res.status(422).json({ error: 'Schema validation failed', details: validate.errors });
     }
-}
 
-// Endpoint to parse a prompt.
-app.post('/api/missions/parse', (req, res) => {
-  const userPrompt = req.body.prompt;
-  console.log(`[Intent-Parser] Received prompt: "${userPrompt}"`);
-  const structuredMissionPlan = parsePrompt(userPrompt);
-  res.json(structuredMissionPlan);
+    // Return structured mission
+    return res.json(missionPlan);
+
+  } catch (err) {
+    console.error('[Intent-Parser] parse error:', err);
+    return res.status(500).json({ error: err.message });
+  }
 });
 
-// NEW: Endpoint to execute a mission plan.
-app.post('/api/missions/execute', async (req, res) => {
-    const missionPlan = req.body;
-    console.log('[Orchestrator] Received mission execution request.');
-    res.status(202).json({ message: "Mission execution started.", mission: missionPlan });
+// --- 2) Execute via Docker ---
+app.post('/api/missions/execute', (req, res) => {
+  const missionPlan = req.body;
 
-    // Execute the mission asynchronously.
-    executeMission(missionPlan);
+  // Validate again before executing
+  if (!validate(missionPlan)) {
+    return res.status(422).json({ error: 'Invalid mission plan', details: validate.errors });
+  }
+
+  // Acknowledge ASAP
+  res.status(202).json({ message: 'Mission execution started.', missionPlan });
+
+  // Fire-and-forget execution
+  (async () => {
+    console.log('[Orchestrator] Running', missionPlan.intent);
+    try {
+      await $(
+        { stdio: 'inherit', cwd: path.resolve(__dirname, '../..') }
+      )`docker compose run --rm scout-warn`;
+      console.log('[Orchestrator] scout-warn done.');
+    } catch (e) {
+      console.error('[Orchestrator] Execution error:', e);
+    }
+  })();
 });
 
-app.listen(PORT, () => {
-  console.log(`[Intent-Parser/Orchestrator] API server listening on http://localhost:${PORT}`);
-});
+// --- Start the server ---
+app.listen(PORT, () =>
+  console.log(`[Intent-Parser/Orchestrator] Listening on http://localhost:${PORT}`)
+);
