@@ -1,95 +1,131 @@
-// File: agents/scout-warn/index.js
-import fs from 'fs/promises';
-import path from 'path';
-import axios from 'axios';
-import XLSX from 'xlsx';
-import { Pool } from 'pg';
+// agents/scout-warn/index.js - v2.2 with Fixed Excel Parsing
 import dotenv from 'dotenv';
-
-dotenv.config();
-
-const WARN_URL = process.env.WARN_URL ||
-  'https://edd.ca.gov/siteassets/files/jobs_and_training/warn/warn_report1.xlsx';
-const WARN_FILE = path.join(process.cwd(), 'data', 'warn_notices.xlsx');
-
-async function downloadExcel() {
-  console.log(`[scout-warn] Downloading Excel from ${WARN_URL}`);
-  const resp = await axios.get(WARN_URL, { responseType: 'arraybuffer' });
-  await fs.mkdir(path.dirname(WARN_FILE), { recursive: true });
-  await fs.writeFile(WARN_FILE, resp.data);
-  console.log('[scout-warn] Excel saved to', WARN_FILE);
+if (process.env.NODE_ENV !== 'production') {
+  dotenv.config({ path: '../../.env' });
 }
 
-async function loadAndInsert() {
-  const workbook = XLSX.readFile(WARN_FILE);
-  console.log('[scout-warn] Available sheets:', workbook.SheetNames.join(', '));
+import { pool, initializeSchema } from './db.js';
+import axios from 'axios';
+import xlsx from 'xlsx';
 
-  const sheetName = workbook.SheetNames.find(n => /detailed\s*warn\s*report/i.test(n));
-  if (!sheetName) {
-    console.error('[scout-warn] ERROR: no "Detailed WARN Report" sheet found');
-    return;
-  }
-  console.log('[scout-warn] Using sheet:', sheetName);
+const TARGET_URL = 'https://edd.ca.gov/siteassets/files/jobs_and_training/warn/warn_report1.xlsx';
 
-  const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: null });
-  console.log(`[scout-warn] Parsed ${rows.length} rows`);
-  if (rows.length === 0) return;
-
-  // Dynamically detect columns
-  const sample = rows[0];
-  const allKeys = Object.keys(sample);
-  console.log('[scout-warn] Detected columns:', allKeys.join(', '));
-  const empKey = allKeys.find(k => /employer|company/i.test(k));
-  const dateKey = allKeys.find(k => /notice date|report date|layoff date/i.test(k));
-  console.log('[scout-warn] Mapped employer field:', empKey);
-  console.log('[scout-warn] Mapped date field:', dateKey);
-  if (!empKey || !dateKey) {
-    console.error('[scout-warn] ERROR: could not map employer or date columns');
-    return;
-  }
-
-  // Setup DB
-  const pool = new Pool({
-    host:     process.env.PGHOST,
-    port:     parseInt(process.env.PGPORT, 10),
-    user:     process.env.PGUSER,
-    password: process.env.PGPASSWORD,
-    database: process.env.PGDATABASE,
-  });
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS scout_warn_leads (
-      id SERIAL PRIMARY KEY,
-      employer_name TEXT NOT NULL,
-      notice_date DATE NOT NULL,
-      raw JSONB,
-      created_at TIMESTAMPTZ DEFAULT NOW()
-    );
-  `);
-
-  let inserted = 0;
-  for (const row of rows) {
-    const employer = row[empKey] ? String(row[empKey]).trim() : null;
-    const dateStr  = row[dateKey];
-    const noticeDate = dateStr ? new Date(dateStr) : null;
-    if (!employer || isNaN(noticeDate)) continue;
-    await pool.query(
-      `INSERT INTO scout_warn_leads(employer_name, notice_date, raw)
-       VALUES ($1, $2, $3) ON CONFLICT DO NOTHING;`,
-      [ employer, noticeDate.toISOString().split('T')[0], row ]
-    );
-    inserted++;
-  }
-  console.log(`[scout-warn] Successfully inserted ${inserted} rows`);
-  await pool.end();
+function normalizeData(rawData) {
+    const normalizedEvents = [];
+    const dataRows = rawData.slice(2); // Skip header rows
+    
+    for (const row of dataRows) {
+        if (!row || row.length < 8) continue;
+        
+        // Based on the detected headers, map the columns
+        // The Excel structure shows: WARN REPORT - 07/01/25 to 07/14/2025, __EMPTY, __EMPTY_1, etc.
+        // We need to find the actual data columns
+        const employer = row[0] || row[1]; // Try first two columns for employer
+        const dateStr = row[2] || row[3]; // Try columns 3-4 for date
+        const employeeCount = row[4] || row[5]; // Try columns 5-6 for employee count
+        
+        if (!employer || !dateStr) continue;
+        
+        // Parse the date
+        let parsedDate;
+        try {
+            parsedDate = new Date(dateStr);
+            if (isNaN(parsedDate.getTime())) {
+                // Try alternative date parsing
+                const dateMatch = dateStr.toString().match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+                if (dateMatch) {
+                    parsedDate = new Date(dateMatch[3], dateMatch[1] - 1, dateMatch[2]);
+                }
+            }
+        } catch (e) {
+            console.log(`[scout-warn] Could not parse date: ${dateStr}`);
+            continue;
+        }
+        
+        if (isNaN(parsedDate.getTime())) continue;
+        
+        // Parse employee count
+        let employeeCountNum = 0;
+        if (employeeCount) {
+            const countMatch = employeeCount.toString().match(/(\d+)/);
+            if (countMatch) {
+                employeeCountNum = parseInt(countMatch[1]);
+            }
+        }
+        
+        normalizedEvents.push({
+            company_name: employer.toString().trim(),
+            received_date: parsedDate,
+            employee_count: employeeCountNum
+        });
+    }
+    
+    return normalizedEvents;
 }
 
-(async () => {
-  try {
-    await downloadExcel();
-    await loadAndInsert();
+async function main() {
+    console.log('[scout-warn] Starting scout-warn agent...');
+    
+    try {
+        await initializeSchema();
+        console.log('[scout-warn] Schema initialized successfully.');
+        
+        console.log('[scout-warn] Downloading Excel from', TARGET_URL);
+        const response = await axios.get(TARGET_URL, { responseType: 'arraybuffer' });
+        
+        const workbook = xlsx.read(response.data, { type: 'buffer' });
+        const sheetName = 'Detailed WARN Report ';
+        const worksheet = workbook.Sheets[sheetName];
+        
+        if (!worksheet) {
+            console.error('[scout-warn] Sheet not found:', sheetName);
+            return;
+        }
+        
+        const rawData = xlsx.utils.sheet_to_json(worksheet, { header: 1 });
+        console.log('[scout-warn] Parsed', rawData.length, 'rows');
+        
+        // Log the first few rows to understand the structure
+        console.log('[scout-warn] First 3 rows:', rawData.slice(0, 3));
+        
+        const normalizedEvents = normalizeData(rawData);
+        console.log('[scout-warn] Normalized', normalizedEvents.length, 'events');
+        
+        if (normalizedEvents.length === 0) {
+            console.log('[scout-warn] No valid events found. Raw data sample:', rawData.slice(0, 5));
+            return;
+        }
+        
+        // Insert into database
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            
+            for (const event of normalizedEvents) {
+                const query = `
+                    INSERT INTO warn_notices (company_name, received_date, employee_count)
+                    VALUES ($1, $2, $3)
+                    ON CONFLICT (company_name, received_date, employee_count) DO NOTHING
+                `;
+                await client.query(query, [event.company_name, event.received_date, event.employee_count]);
+            }
+            
+            await client.query('COMMIT');
+            console.log('[scout-warn] Successfully inserted', normalizedEvents.length, 'WARN notices');
+        } catch (error) {
+            await client.query('ROLLBACK');
+            console.error('[scout-warn] Database error:', error);
+        } finally {
+            client.release();
+        }
+        
+    } catch (error) {
+        console.error('[scout-warn] Error:', error);
+    } finally {
+        await pool.end();
+    }
+    
     console.log('[scout-warn] All done.');
-  } catch (err) {
-    console.error('[scout-warn] Fatal error:', err);
-    process.exit(1);
-  }
-})();
+}
+
+main();

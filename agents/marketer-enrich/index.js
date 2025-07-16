@@ -1,8 +1,8 @@
 // File: ~/vltrn-system/agents/marketer-agent/index.js
-require('dotenv').config();   // ← MUST be first!
+import dotenv from 'dotenv';
+import { query, pool } from './db.js'; // your ./db should export { query, pool }
 
-const { query, pool } = require('./db'); // your ./db should export { query, pool }
-const axios = require('axios');
+dotenv.config();   // ← MUST be first!
 
 async function ensureSchema() {
   console.log('[marketer] Verifying Dataroom schema…');
@@ -52,7 +52,7 @@ async function main() {
   // (optional) call external APIs here…
 
   // 4) insert payload JSON
-  const res = await query({
+  await query({
     text: `INSERT INTO warn_notices (payload) VALUES ($1)`,
     values: [payload]
   });

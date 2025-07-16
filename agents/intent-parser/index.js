@@ -1,124 +1,160 @@
-// index.js
+// agents/intent-parser/index.js v4.1 - With Mission Status Endpoint
 import express from 'express';
 import { $ } from 'execa';
-import Ajv from 'ajv';
-import fs from 'fs';
-import path from 'path';
-import dotenv from 'dotenv';
-import { fileURLToPath } from 'url';
+import { generateMissionPlan } from './mission-planner.js';
+import cors from 'cors';
+import pg from 'pg';
 
-import { generate } from './llmClient.js';
-import { systemPrompt, userPrompt } from './promptTemplates.js';
-
-dotenv.config();
-
-// ESM __dirname hack
-const __filename = fileURLToPath(import.meta.url);
-const __dirname  = path.dirname(__filename);
-
-// Load & compile schema
-const schemaPath = path.join(__dirname, 'schemas', 'mission.schema.json');
-const schema     = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
-const validate   = new Ajv({ allErrors: true }).compile(schema);
-
-const app = express();
-app.use(express.json());
+const { Pool } = pg;
 const PORT = process.env.PORT || 4000;
+const app = express();
 
-/**
- * Local stub parser to guarantee a mission plan.
- */
+const pool = new Pool({
+    user: process.env.POSTGRES_USER || 'postgres',
+    host: 'dataroom-db',
+    database: 'dataroom',
+    password: process.env.POSTGRES_PASSWORD || 'postgres',
+    port: 5432,
+});
+
+const corsOptions = { 
+  origin: process.env.FRONTEND_URL || ['http://localhost:5173', 'http://localhost:5174'],
+  credentials: true
+};
+app.use(cors(corsOptions));
+app.use(express.json());
+
+// --- (parsePrompt and generateMissionPlan functions remain the same) ---
 function parsePrompt(prompt) {
-  const lower = prompt.toLowerCase();
-  const plan = {
-    intent: 'search_layoff_events',
-    parameters: {},
-    steps: [
-      {
-        id: 'run_scout_warn',
-        action: 'run_container',
-        agent: 'scout-warn',
-        options: {}
-      }
-    ]
+  const lowerCasePrompt = prompt.toLowerCase();
+  const missionPlan = {
+    action: "SEARCH_LAYOFF_EVENTS",
+    target_entities: [],
+    filters: {}
   };
-  if (lower.includes('tech'))       plan.parameters.industry   = 'Technology';
-  if (lower.includes('california')) plan.parameters.location   = 'California';
-  if (lower.includes('last month')) plan.parameters.date_range = 'past_30_days';
-  if (lower.includes('company'))    plan.parameters.target_entities = ['company'];
-  return plan;
+  if (lowerCasePrompt.includes('tech')) missionPlan.filters.industry = 'Technology';
+  if (lowerCasePrompt.includes('california')) missionPlan.filters.location = 'California';
+  if (lowerCasePrompt.includes('last month')) missionPlan.filters.date_range = 'past_30_days';
+  if (lowerCasePrompt.includes('companies')) missionPlan.target_entities.push('company');
+  return missionPlan;
 }
 
-// 1) Healthcheck
-app.get('/health', (_req, res) => {
-  res.json({ status: 'OK' });
-});
-
-// 2) Parse endpoint with LLM → fallback stub
-app.post('/api/missions/parse', async (req, res) => {
-  const { prompt, provider } = req.body;
-  if (typeof prompt !== 'string' || !['openai','gemini','venice'].includes(provider)) {
-    return res.status(400).json({
-      error: 'Request JSON must include:\n  { prompt: string, provider: "openai"|"gemini"|"venice" }'
-    });
-  }
-
-  let mission;
-  try {
-    // Attempt LLM parse
-    const raw = await generate(
-      `${systemPrompt}\n${userPrompt(prompt)}`,
-      provider
-    );
-    mission = JSON.parse(raw.trim());
-
-    // Validate LLM output
-    if (!validate(mission)) {
-      throw new Error('LLM returned invalid shape');
-    }
-
-  } catch (err) {
-    console.warn('[Parse] LLM failed:', err.message);
-    // Fallback to local stub
-    mission = parsePrompt(prompt);
-  }
-
-  // Always return a well-formed mission
-  return res.json(mission);
-});
-
-// 3) Execute endpoint
-app.post('/api/missions/execute', (req, res) => {
-  const missionPlan = req.body;
-  if (!validate(missionPlan)) {
-    return res.status(422).json({
-      error: 'Invalid mission plan',
-      details: validate.errors
-    });
-  }
-
-  res.status(202).json({ message: 'Mission execution started.', missionPlan });
-
-  (async () => {
-    console.log('[Orchestrator] Executing', missionPlan.intent);
-    for (const step of missionPlan.steps) {
-      console.log(`→ step ${step.id}`, step.action, step.agent);
-      if (step.action === 'run_container') {
-        try {
-          await $(
-            { stdio: 'inherit', cwd: path.resolve(__dirname, '../..') }
-          )`docker compose run --rm ${step.agent}`;
-          console.log(`✔ ${step.agent}`);
-        } catch (e) {
-          console.error(`✘ step ${step.id} failed:`, e.message);
-          break;
+async function executeMission(missionId, missionPlan) {
+    console.log(`[Orchestrator] Starting execution for mission ID: ${missionId}`);
+    await pool.query('UPDATE missions SET status = $1 WHERE id = $2', ['running', missionId]);
+    try {
+        for (const step of missionPlan.execution_steps) {
+            console.log(`[Orchestrator] Executing Step ${step.step}: ${step.description}`);
+            const agentProcess = $({ stdio: 'inherit', cwd: '../..' })`docker compose run --rm --env MISSION_ID=${missionId} ${step.agent}`;
+            await agentProcess;
         }
-      }
+        await pool.query('UPDATE missions SET status = $1, completed_at = NOW() WHERE id = $2', ['completed', missionId]);
+        console.log(`[Orchestrator] Mission ID ${missionId} executed successfully.`);
+    } catch (error) {
+        console.error(`[Orchestrator] Mission ID ${missionId} failed. Aborting.`);
+        await pool.query('UPDATE missions SET status = $1, completed_at = NOW() WHERE id = $2', ['failed', missionId]);
     }
-    console.log('[Orchestrator] Mission complete.');
-  })();
+}
+
+// --- API Endpoints ---
+app.get('/health', (req, res) => res.json({ status: 'OK' }));
+
+app.post('/api/missions/parse', (req, res) => {
+  const { prompt } = req.body;
+  if (!prompt) {
+    return res.status(400).json({ error: 'Prompt is required' });
+  }
+  
+  try {
+    const parsedIntent = parsePrompt(prompt);
+    const missionPlan = generateMissionPlan(parsedIntent);
+    res.json({ 
+      success: true, 
+      parsedIntent, 
+      missionPlan 
+    });
+  } catch (error) {
+    console.error('Error parsing mission:', error);
+    res.status(500).json({ error: 'Failed to parse mission' });
+  }
+});
+
+app.post('/api/missions/execute', async (req, res) => {
+  const { prompt } = req.body;
+  if (!prompt) {
+    return res.status(400).json({ error: 'Prompt is required' });
+  }
+  
+  try {
+    const parsedIntent = parsePrompt(prompt);
+    const missionPlan = generateMissionPlan(parsedIntent);
+    
+    // Create mission record
+    const missionResult = await pool.query(
+      'INSERT INTO missions (prompt, parsed_intent, mission_plan, status, created_at) VALUES ($1, $2, $3, $4, NOW()) RETURNING id',
+      [prompt, JSON.stringify(parsedIntent), JSON.stringify(missionPlan), 'queued']
+    );
+    const missionId = missionResult.rows[0].id;
+    
+    console.log(`[Orchestrator] Created mission ID: ${missionId}`);
+    
+    // Execute mission asynchronously
+    executeMission(missionId, missionPlan);
+    
+    res.json({ 
+      success: true, 
+      missionId,
+      message: 'Mission queued for execution',
+      parsedIntent, 
+      missionPlan 
+    });
+  } catch (error) {
+    console.error('Error executing mission:', error);
+    res.status(500).json({ error: 'Failed to execute mission' });
+  }
+});
+
+// NEW: Endpoint to get the status of a specific mission
+app.get('/api/missions/:id', async (req, res) => {
+    const { id } = req.params;
+    console.log(`[Orchestrator] Received status request for mission ID: ${id}`);
+    try {
+        const result = await pool.query('SELECT * FROM missions WHERE id = $1', [id]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Mission not found.' });
+        }
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error(`[Orchestrator] Error fetching mission status for ID ${id}:`, error);
+        res.status(500).json({ error: 'Failed to fetch mission status.' });
+    }
+});
+
+// NEW: Endpoint to list all missions
+app.get('/api/missions', async (req, res) => {
+    console.log(`[Orchestrator] Received request to list all missions.`);
+    try {
+        const result = await pool.query('SELECT id, prompt, status, created_at, completed_at FROM missions ORDER BY id DESC');
+        res.json(result.rows);
+    } catch (error) {
+        console.error(`[Orchestrator] Error fetching mission list:`, error);
+        res.status(500).json({ error: 'Failed to fetch mission list.' });
+    }
+});
+
+// NEW: Endpoint to get mission results
+app.get('/api/missions/:id/results', async (req, res) => {
+    const { id } = req.params;
+    console.log(`[Orchestrator] Received results request for mission ID: ${id}`);
+    try {
+        const result = await pool.query('SELECT * FROM mission_results WHERE mission_id = $1 ORDER BY enriched_at DESC', [id]);
+        res.json(result.rows);
+    } catch (error) {
+        console.error(`[Orchestrator] Error fetching mission results for ID ${id}:`, error);
+        res.status(500).json({ error: 'Failed to fetch mission results.' });
+    }
 });
 
 app.listen(PORT, () => {
-  console.log(`Intent-Parser listening on http://localhost:${PORT}`);
+  console.log(`[Intent-Parser/Orchestrator] API server listening on http://localhost:${PORT}`);
 });

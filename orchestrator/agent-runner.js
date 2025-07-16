@@ -3,7 +3,7 @@ import { promisify } from 'util';
 
 const execPromise = promisify(exec);
 
-export async function runAgentContainer(agentName, prompt) {
+export async function runAgentContainer(agentName) {
   console.log(`[Orchestrator] Attempting to launch agent service: ${agentName}`);
   
   // This command correctly starts the agent as a managed service on the shared network.

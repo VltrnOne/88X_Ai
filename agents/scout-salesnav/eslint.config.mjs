@@ -25,4 +25,4 @@ export default [
       "no-unreachable": "error"
     }
   }
-];
+]; 

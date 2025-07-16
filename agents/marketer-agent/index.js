@@ -1,91 +1,103 @@
-// File: agents/marketer-agent/index.js
-
+// agents/marketer-agent/index.js v3.0 - With Result Persistence
 import dotenv from 'dotenv';
-import { Pool } from 'pg';
-import axios from 'axios';
-
-dotenv.config();
-
-// Setup Postgres connection pool
-const pool = new Pool({
-  host:     process.env.PGHOST,
-  port:     parseInt(process.env.PGPORT, 10),
-  user:     process.env.PGUSER,
-  password: process.env.PGPASSWORD,
-  database: process.env.PGDATABASE,
-});
-
-// Ensure enriched_leads table exists with appropriate schema
-async function ensureSchema() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS enriched_leads (
-      id            SERIAL PRIMARY KEY,
-      source_id     INTEGER NOT NULL,
-      employer_name TEXT,
-      layoff_date   DATE,
-      domain        TEXT,
-      contacts      JSONB,
-      created_at    TIMESTAMPTZ DEFAULT NOW()
-    );
-  `);
+if (process.env.NODE_ENV !== 'production') {
+  dotenv.config({ path: '../../.env' });
 }
 
-// Fetch company domain using Google Custom Search API
-async function fetchDomain(company) {
-  console.log(`[VLTRN-Marketer][Google] Querying domain for "${company}"…`);
-  const res = await axios.get('https://www.googleapis.com/customsearch/v1', {
-    params: {
-      key: process.env.GOOGLE_API_KEY,
-      cx:  process.env.SEARCH_ENGINE_ID,
-      q:   `${company} official website`,
-    }
-  });
-  return res.data.items?.[0]?.displayLink || null;
-}
+import { pool, initializeSchema } from './db.js';
 
-// Main pipeline
-async function main() {
+async function persistResults(missionId, contacts) {
+  if (!contacts || contacts.length === 0) return;
+  console.log(`[Marketer-Agent] Persisting ${contacts.length} contacts to Dataroom for mission ${missionId}.`);
+  const client = await pool.connect();
   try {
-    console.log('[VLTRN-Marketer] Starting enrichment…');
-    await ensureSchema();
-
-    // Fetch leads to enrich
-    const { rows } = await pool.query(
-      'SELECT id, employer_name, layoff_date FROM scout_warn_leads;'
-    );
-    for (const row of rows) {
-      const { id, employer_name, layoff_date } = row;
-      console.log(`[VLTRN-Marketer] Processing lead: ${employer_name}`);
-
-      if (!employer_name) {
-        console.warn('[VLTRN-Marketer] Skipping empty employer_name');
-        continue;
-      }
-
-      let domain = null;
-      try {
-        domain = await fetchDomain(employer_name);
-      } catch (e) {
-        console.error(`[VLTRN-Marketer][Google] API error: ${e.message}`);
-      }
-
-      // Insert enriched lead
-      await pool.query(
-        `INSERT INTO enriched_leads 
-           (source_id, employer_name, layoff_date, domain, contacts) 
-         VALUES ($1, $2, $3, $4, $5)`,
-        [id, employer_name, layoff_date, domain, []]
-      );
-      console.log(`[VLTRN-Marketer] Inserted enriched lead for ${employer_name}`);
+    await client.query('BEGIN');
+    for (const contact of contacts) {
+      const query = `
+        INSERT INTO mission_results (mission_id, agent_name, contact_name, contact_email, source)
+        VALUES ($1, 'marketer-agent', $2, $3, $4)
+        ON CONFLICT (contact_email) DO NOTHING;
+      `;
+      await client.query(query, [missionId, contact.name, contact.email, contact.source]);
     }
+    await client.query('COMMIT');
+    console.log(`[Marketer-Agent] Successfully persisted ${contacts.length} contacts for mission ${missionId}`);
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('[Marketer-Agent] Error persisting results:', error);
+  } finally {
+    client.release();
+  }
+}
 
-    console.log('[VLTRN-Marketer] Done.');
-  } catch (err) {
-    console.error('[VLTRN-Marketer] Fatal error:', err);
-    process.exit(1);
+async function getContactsFromGitHub(domain) {
+  // Simulated contact enrichment - in a real implementation, this would use GitHub API
+  console.log(`[Marketer-Agent] Enriching contacts for domain: ${domain}`);
+  
+  // Simulate finding contacts
+  const mockContacts = [
+    {
+      name: 'John Smith',
+      email: `john.smith@${domain}`,
+      source: 'GitHub API'
+    },
+    {
+      name: 'Sarah Johnson',
+      email: `sarah.johnson@${domain}`,
+      source: 'GitHub API'
+    },
+    {
+      name: 'Mike Davis',
+      email: `mike.davis@${domain}`,
+      source: 'GitHub API'
+    }
+  ];
+  
+  return mockContacts;
+}
+
+async function main() {
+  const missionId = process.env.MISSION_ID;
+  if (!missionId) {
+    console.error("[Marketer-Agent] FATAL: MISSION_ID environment variable not provided.");
+    return;
+  }
+  
+  console.log('[VLTRN-Marketer] Starting enrichment…');
+  
+  try {
+    await initializeSchema();
+    console.log('[VLTRN-Marketer] Schema initialized successfully.');
+    
+    // Get companies from warn_notices table
+    const result = await pool.query('SELECT DISTINCT company_name FROM warn_notices LIMIT 5');
+    const companies = result.rows;
+    
+    console.log(`[VLTRN-Marketer] Found ${companies.length} companies to enrich`);
+    
+    if (companies.length === 0) {
+      console.log('[VLTRN-Marketer] No companies found in warn_notices table');
+      return;
+    }
+    
+    const allFoundContacts = [];
+    
+    for (const company of companies) {
+      const domain = company.company_name.toLowerCase().replace(/\s+/g, '') + '.com';
+      const contacts = await getContactsFromGitHub(domain);
+      allFoundContacts.push(...contacts);
+    }
+    
+    // Persist results to mission_results table
+    await persistResults(missionId, allFoundContacts);
+    
+  } catch (error) {
+    console.error('[VLTRN-Marketer] Fatal error:', error);
   } finally {
     await pool.end();
   }
+  
+  console.log('[VLTRN-Marketer] Enrichment complete.');
 }
 
 main();

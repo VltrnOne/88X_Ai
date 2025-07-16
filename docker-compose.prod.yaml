@@ -2,10 +2,7 @@ services:
 
   # ──────────── Dataroom DB ────────────
   dataroom-db:
-    build:
-      context: ./dataroom-db
-      dockerfile: Dockerfile
-    image: vltrn/dataroom-db:custom
+    image: postgres:17-alpine
     container_name: vltrn-dataroom-db
     restart: always
     environment:
@@ -14,6 +11,7 @@ services:
       POSTGRES_DB: dataroom
     volumes:
       - dataroom-data:/var/lib/postgresql/data
+      - ./dataroom-db/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -22,43 +20,48 @@ services:
 
   # ──────────── Scout-Warn Agent ────────────
   scout-warn:
-    build:
-      context: ./agents/scout-warn
-      dockerfile: Dockerfile
-    image: vltrn/scout-warn:1.0.0
+    image: ghcr.io/vltrnone/scout-warn:latest
     container_name: vltrn-scout-warn
-    env_file:
-      - .env
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: dataroom
+      POSTGRES_HOST: dataroom-db
+      POSTGRES_PORT: 5432
     depends_on:
       dataroom-db:
         condition: service_healthy
-    command: npm start
+    restart: always
 
   # ──────────── Marketer-Agent ────────────
   marketer-agent:
-    build:
-      context: ./agents/marketer-agent
-      dockerfile: Dockerfile
-    image: vltrn/marketer-agent:1.0.0
+    image: ghcr.io/vltrnone/marketer-agent:latest
     container_name: vltrn-marketer-agent
-    env_file:
-      - .env
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: dataroom
+      POSTGRES_HOST: dataroom-db
+      POSTGRES_PORT: 5432
     depends_on:
       dataroom-db:
         condition: service_healthy
-    command: npm start
+    restart: always
 
   # ──────────── Intent-Parser & Orchestrator ────────────
   intent-parser:
-    build:
-      context: ./agents/intent-parser
-      dockerfile: Dockerfile
-    image: vltrn/intent-parser:1.0.0
+    image: ghcr.io/vltrnone/intent-parser:latest
     container_name: vltrn-intent-parser
     ports:
       - "4000:4000"
-    env_file:
-      - .env
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: dataroom
+      POSTGRES_HOST: dataroom-db
+      POSTGRES_PORT: 5432
+      API_PORT: 4000
+      API_HOST: 0.0.0.0
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
@@ -66,15 +69,13 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
-    command: npm start
+    restart: always
 
   # ──────────── Redis for BullMQ ────────────
   redis:
     image: redis:7-alpine
     container_name: vltrn-redis
-    ports:
-      - "6379:6379"
     restart: always
 
 volumes:
-  dataroom-data:
+  dataroom-data: 

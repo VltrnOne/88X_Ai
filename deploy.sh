@@ -1,4 +1,23 @@
 #!/bin/bash
+
+echo "🚀 VLTRN System Deployment Script"
+echo "=================================="
+
+# Create VLTRN directory
+mkdir -p ~/vltrn-system
+cd ~/vltrn-system
+
+echo "📁 Created VLTRN directory"
+
+# Download production docker-compose file
+curl -o docker-compose.yaml https://raw.githubusercontent.com/VltrnOne/vltrn-system/main/docker-compose.prod.yaml
+
+echo "📥 Downloaded production docker-compose file"
+
+# Create database initialization script
+mkdir -p dataroom-db
+cat > dataroom-db/init-db.sh << 'EOF'
+#!/bin/bash
 set -e
 
 echo "Starting database initialization..."
@@ -61,3 +80,28 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "dataroom" <<-EOSQL
 EOSQL
 
 echo "Database initialization completed successfully"
+EOF
+
+chmod +x dataroom-db/init-db.sh
+
+echo "📝 Created database initialization script"
+
+# Pull Docker images
+echo "🐳 Pulling Docker images from GitHub Container Registry..."
+docker pull ghcr.io/vltrnone/intent-parser:latest
+docker pull ghcr.io/vltrnone/scout-warn:latest
+docker pull ghcr.io/vltrnone/marketer-agent:latest
+
+echo "✅ Docker images pulled successfully"
+
+# Start the services
+echo "🚀 Starting VLTRN services..."
+docker-compose up -d
+
+echo "✅ VLTRN System deployed successfully!"
+echo ""
+echo "🌐 API Endpoint: http://your-server-ip:4000"
+echo "📊 Check status: docker-compose ps"
+echo "📋 View logs: docker-compose logs -f"
+echo ""
+echo "🎯 Next step: Deploy the frontend to a static hosting service" 

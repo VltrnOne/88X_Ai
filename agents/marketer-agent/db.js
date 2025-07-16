@@ -1,21 +1,42 @@
 // agents/marketer-agent/db.js
 
+import dotenv from 'dotenv';
+
 // Only load the .env file if we are NOT in a production environment.
 if (process.env.NODE_ENV !== 'production') {
-  require('dotenv').config({ path: '../../.env' });
+  dotenv.config({ path: '../../.env' });
 }
 
-const { Pool } = require('pg');
+import { Pool } from 'pg';
 
 const pool = new Pool({
-  user: process.env.POSTGRES_USER,
-  host: process.env.DB_HOST,
-  database: process.env.POSTGRES_DB,
-  password: process.env.POSTGRES_PASSWORD,
-  port: process.env.DB_PORT,
+  user: process.env.POSTGRES_USER || 'postgres',
+  host: 'dataroom-db',
+  database: 'dataroom',
+  password: process.env.POSTGRES_PASSWORD || 'postgres',
+  port: 5432,
 });
 
-module.exports = {
-  query: (text, params) => pool.query(text, params),
-  pool,
-};
+async function initializeSchema() {
+  const resultsQuery = `
+    CREATE TABLE IF NOT EXISTS mission_results (
+      id SERIAL PRIMARY KEY,
+      mission_id INT REFERENCES missions(id) ON DELETE CASCADE,
+      agent_name VARCHAR(100),
+      contact_name VARCHAR(255),
+      contact_email VARCHAR(255) UNIQUE,
+      source TEXT,
+      enriched_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+  `;
+
+  try {
+    await pool.query(resultsQuery);
+    console.log('[VLTRN-DB] Mission results table is ready.');
+  } catch (err) {
+    console.error('[VLTRN-DB] Error initializing schema:', err);
+  }
+}
+
+export const query = (text, params) => pool.query(text, params);
+export { pool, initializeSchema };

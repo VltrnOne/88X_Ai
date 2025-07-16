@@ -1,4 +1,4 @@
-const { Pool } = require('pg');
+import { Pool } from 'pg';
 
 const pool = new Pool({
     user: process.env.DB_USER,
@@ -10,7 +10,5 @@ const pool = new Pool({
 
 // --- CORRECTED EXPORTS ---
 // We now export the pool's `connect` function directly, along with the query helper.
-module.exports = {
-    query: (text, params) => pool.query(text, params),
-    connect: () => pool.connect(),
-};
+export const query = (text, params) => pool.query(text, params);
+export const connect = () => pool.connect();
