@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create a dedicated axios instance for our API
 const apiClient = axios.create({
-  baseURL: 'http://localhost:8080', // The base URL for our orchestrator
+  baseURL: 'http://localhost:4000', // The base URL for our orchestrator
 });
 
 // Use an interceptor to attach the JWT to every request
