@@ -5,10 +5,10 @@ import axios from 'axios';
 const API_BASE_URL = 'http://localhost:4000';
 
 function SolutionDeck() {
-  const [prompt, setPrompt] = useState('Find tech company layoffs in California from last month');
+  const [prompt, setPrompt] = useState('Find tech layoffs in California');
   const [missionId, setMissionId] = useState(null);
   const [missionDetails, setMissionDetails] = useState(null);
-  const [missionResults, setMissionResults] = useState([]);
+  const [results, setResults] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -16,51 +16,47 @@ function SolutionDeck() {
   useEffect(() => {
     if (!missionId) return;
 
-    const interval = setInterval(async () => {
+    const pollStatus = async () => {
       try {
         const response = await axios.get(`${API_BASE_URL}/api/missions/${missionId}`);
         setMissionDetails(response.data);
-        
-        // Stop polling if the mission is completed or has failed
         if (response.data.status === 'completed' || response.data.status === 'failed') {
+          // Mission finished, stop polling and fetch results
+          fetchResults();
           clearInterval(interval);
-          
-          // Fetch mission results if completed
-          if (response.data.status === 'completed') {
-            try {
-              const resultsResponse = await axios.get(`${API_BASE_URL}/api/missions/${missionId}/results`);
-              setMissionResults(resultsResponse.data);
-            } catch (resultsError) {
-              console.error('Failed to fetch mission results:', resultsError);
-            }
-          }
         }
       } catch {
         setError('Failed to fetch mission status.');
         clearInterval(interval);
       }
-    }, 2000); // Poll every 2 seconds
+    };
+    
+    const fetchResults = async () => {
+        try {
+            const response = await axios.get(`${API_BASE_URL}/api/missions/${missionId}/results`);
+            setResults(response.data);
+        } catch (err) {
+            console.error("Failed to fetch results", err);
+        }
+    };
 
+    const interval = setInterval(pollStatus, 3000); // Poll every 3 seconds
     return () => clearInterval(interval); // Cleanup on component unmount
   }, [missionId]);
 
   const handleExecuteMission = async () => {
-    if (!prompt) {
-      setError('Prompt cannot be empty.');
-      return;
-    }
     setIsLoading(true);
     setError('');
     setMissionId(null);
     setMissionDetails(null);
-    setMissionResults([]);
+    setResults([]);
 
     try {
       const response = await axios.post(`${API_BASE_URL}/api/missions/execute`, { prompt });
       setMissionId(response.data.missionId);
-      setMissionDetails(response.data.missionPlan); // Display initial plan
+      setMissionDetails(response.data.plan);
     } catch (err) {
-      setError('Failed to connect to the Orchestrator service.');
+      setError('Failed to start mission.');
       console.error(err);
     } finally {
       setIsLoading(false);
@@ -78,7 +74,7 @@ function SolutionDeck() {
           rows="4"
           disabled={isLoading}
         />
-        <button onClick={handleExecuteMission} disabled={isLoading}>
+        <button onClick={handleExecuteMission} disabled={isLoading || missionId}>
           {isLoading ? 'Executing...' : 'Parse and Execute Mission'}
         </button>
       </div>
@@ -97,35 +93,29 @@ function SolutionDeck() {
               </li>
             ))}
           </ul>
-        </div>
-      )}
-
-      {missionResults.length > 0 && (
-        <div className="mission-results-display">
-          <h3>Mission Results</h3>
-          <p><strong>Total Contacts Found:</strong> {missionResults.length}</p>
-          <div className="results-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>Contact Name</th>
-                  <th>Email</th>
-                  <th>Source</th>
-                  <th>Enriched At</th>
-                </tr>
-              </thead>
-              <tbody>
-                {missionResults.map((result, index) => (
-                  <tr key={index}>
-                    <td>{result.contact_name}</td>
-                    <td>{result.contact_email}</td>
-                    <td>{result.source}</td>
-                    <td>{new Date(result.enriched_at).toLocaleString()}</td>
+          {results.length > 0 && (
+            <>
+              <h3>Results:</h3>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Source</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {results.map(result => (
+                    <tr key={result.id}>
+                      <td>{result.contact_name}</td>
+                      <td>{result.contact_email}</td>
+                      <td>{result.source}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
         </div>
       )}
     </div>
