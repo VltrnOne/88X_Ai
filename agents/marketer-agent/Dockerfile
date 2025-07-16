@@ -1,20 +1,26 @@
-# Stage 1: install deps
+# File: agents/marketer-agent/Dockerfile
+
+# Stage 1: build
 FROM node:20-alpine AS builder
 WORKDIR /usr/src/app
 
-# Copy only package.json + lockfile, install production deps
-COPY package*.json ./
-RUN npm ci --only=production
+# Copy package manifest and install dependencies (production only)
+COPY package.json package-lock.json ./
+RUN npm install --omit=dev
 
-# Stage 2: final image
+# Copy source code
+COPY . .
+
+# Stage 2: runtime
 FROM node:20-alpine
 WORKDIR /usr/src/app
 
-# Pull in prod dependencies from builder
+# Copy built dependencies and source
 COPY --from=builder /usr/src/app/node_modules ./node_modules
+COPY --from=builder /usr/src/app .
 
-# Copy your code
-COPY . .
+# Expose port if needed (optional)
+EXPOSE 8080
 
-# Run your agent
+# Start the marketer-agent
 CMD ["node", "index.js"]

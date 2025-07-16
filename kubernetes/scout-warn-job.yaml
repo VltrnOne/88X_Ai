@@ -1,15 +1,67 @@
+# File: kubernetes/scout-warn-job.yaml
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: scout-warn-run
 spec:
+  backoffLimit: 0
   template:
     spec:
+      restartPolicy: Never
+
       containers:
-      - name: scout-warn-agent
-        image: ghcr.io/morpheous/scout-warn:1.0.0
+      - name: scout-warn
+        image: vltrn/scout-warn:1.0.0
+
+        # pull in your LLM & Postgres creds from the single Secret
         envFrom:
         - secretRef:
             name: vltrn-secrets
-      restartPolicy: Never
-  backoffLimit: 4
+
+        # override pg-environment vars so node-postgres talks to
+        # your in‑cluster database (not localhost)
+        env:
+        - name: PGHOST
+          value: dataroom-db-service
+        - name: PGPORT
+          value: "5432"
+        - name: PGUSER
+          valueFrom:
+            secretKeyRef:
+              name: vltrn-secrets
+              key: POSTGRES_USER
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: vltrn-secrets
+              key: POSTGRES_PASSWORD
+        - name: PGDATABASE
+          valueFrom:
+            secretKeyRef:
+              name: vltrn-secrets
+              key: POSTGRES_DB
+
+        # the XLSX URL you asked for
+        - name: WARN_NOTICES_URL
+          value: "https://edd.ca.gov/siteassets/files/jobs_and_training/warn/warn_report1.xlsx"
+        # where your code expects to find it
+        - name: WARN_NOTICES_FILE
+          value: /data/warn_notices.xlsx
+
+        volumeMounts:
+        - name: data
+          mountPath: /data
+
+        # fetch the file, then run your script
+        command:
+        - sh
+        - -c
+        - |
+          echo "[scout-warn] Downloading Excel from $WARN_NOTICES_URL …"
+          wget -qO "$WARN_NOTICES_FILE" "$WARN_NOTICES_URL"
+          echo "[scout-warn] Launching index.js …"
+          node index.js
+
+      volumes:
+      - name: data
+        emptyDir: {}

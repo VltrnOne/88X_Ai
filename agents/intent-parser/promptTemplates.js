@@ -1,19 +1,21 @@
-// agents/intent-parser/promptTemplates.js
-const systemPrompt = `
-You are VLTRN Prime’s Intent Parser. 
-Extract from the user’s natural-language prompt:
-- a top-level "intent" (short snake_case string),
-- a "parameters" object,
-- an optional "steps" array of { action, agent?, options? }.
-
-Respond ONLY with valid JSON conforming to the MissionPlan schema.
-`;
-
-function userPrompt(prompt) {
-  return `
-User Prompt:
-"""${prompt}"""
-`;
+// vltrn-system/agents/intent-parser/promptTemplates.js
+export const systemPrompt = `
+You are VLTRN Prime's Mission Planner.
+Produce JSON matching this schema exactly:
+{
+  "intent": string,
+  "parameters": object,
+  "steps": [
+    {
+      "id": string,
+      "action": string,
+      "agent": string,
+      "options": object
+    }
+  ]
 }
+Respond ONLY with JSON.`;
 
-module.exports = { systemPrompt, userPrompt };
+export function userPrompt(prompt) {
+  return `User Prompt:\n"""${prompt}"""`;
+}

@@ -1,91 +1,95 @@
-// agents/scout-warn/index.js
-require('dotenv').config();
-const axios  = require('axios');
-const cheerio = require('cheerio');
-const { pool } = require('./db');
+// File: agents/scout-warn/index.js
+import fs from 'fs/promises';
+import path from 'path';
+import axios from 'axios';
+import XLSX from 'xlsx';
+import { Pool } from 'pg';
+import dotenv from 'dotenv';
 
-const TARGET_URL = 'https://edd.ca.gov/en/jobs_and_training/layoff_services_warn/';
+dotenv.config();
 
-async function ensureSchema() {
-  console.log('[scout-warn] Verifying Dataroom schema…');
-  const client = await pool.connect();
-  try {
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS scout_warn_leads (
-        id               SERIAL PRIMARY KEY,
-        notice_date      DATE      NOT NULL,
-        company_name     TEXT      NOT NULL,
-        city             TEXT      NOT NULL,
-        employees_affected INT      NOT NULL,
-        scraped_at       TIMESTAMPTZ DEFAULT NOW(),
-        UNIQUE(notice_date, company_name, city, employees_affected)
-      );
-    `);
-    console.log('[scout-warn] Table "scout_warn_leads" is ready.');
-  } finally {
-    client.release();
-  }
+const WARN_URL = process.env.WARN_URL ||
+  'https://edd.ca.gov/siteassets/files/jobs_and_training/warn/warn_report1.xlsx';
+const WARN_FILE = path.join(process.cwd(), 'data', 'warn_notices.xlsx');
+
+async function downloadExcel() {
+  console.log(`[scout-warn] Downloading Excel from ${WARN_URL}`);
+  const resp = await axios.get(WARN_URL, { responseType: 'arraybuffer' });
+  await fs.mkdir(path.dirname(WARN_FILE), { recursive: true });
+  await fs.writeFile(WARN_FILE, resp.data);
+  console.log('[scout-warn] Excel saved to', WARN_FILE);
 }
 
-async function runScoutWarnMission() {
-  console.log('[scout-warn] Fetching page…');
-  const { data: html } = await axios.get(TARGET_URL);
-  const $ = cheerio.load(html);
-  const notices = [];
+async function loadAndInsert() {
+  const workbook = XLSX.readFile(WARN_FILE);
+  console.log('[scout-warn] Available sheets:', workbook.SheetNames.join(', '));
 
-  $('table tbody tr').each((i, row) => {
-    const cols = $(row).find('td');
-    if (cols.length < 4) return;
-    const dateText = $(cols[0]).text().trim();
-    const d = new Date(dateText);
-    if (isNaN(d.getTime())) return;
-    notices.push({
-      notice_date:      d.toISOString().slice(0,10),
-      company_name:     $(cols[1]).text().trim(),
-      city:             $(cols[2]).text().trim(),
-      employees_affected: parseInt($(cols[3]).text().replace(/\D/g, ''), 10) || 0,
-    });
-  });
+  const sheetName = workbook.SheetNames.find(n => /detailed\s*warn\s*report/i.test(n));
+  if (!sheetName) {
+    console.error('[scout-warn] ERROR: no "Detailed WARN Report" sheet found');
+    return;
+  }
+  console.log('[scout-warn] Using sheet:', sheetName);
 
-  console.log(`[scout-warn] Scraped ${notices.length} notices.`);
+  const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: null });
+  console.log(`[scout-warn] Parsed ${rows.length} rows`);
+  if (rows.length === 0) return;
 
-  if (!notices.length) {
-    console.log('[scout-warn] No new data → exiting.');
+  // Dynamically detect columns
+  const sample = rows[0];
+  const allKeys = Object.keys(sample);
+  console.log('[scout-warn] Detected columns:', allKeys.join(', '));
+  const empKey = allKeys.find(k => /employer|company/i.test(k));
+  const dateKey = allKeys.find(k => /notice date|report date|layoff date/i.test(k));
+  console.log('[scout-warn] Mapped employer field:', empKey);
+  console.log('[scout-warn] Mapped date field:', dateKey);
+  if (!empKey || !dateKey) {
+    console.error('[scout-warn] ERROR: could not map employer or date columns');
     return;
   }
 
-  console.log('[scout-warn] Inserting new notices into Dataroom…');
-  const client = await pool.connect();
-  try {
-    let inserted = 0;
-    for (const n of notices) {
-      const res = await client.query(
-        `INSERT INTO scout_warn_leads(
-           notice_date, company_name, city, employees_affected
-         ) VALUES($1,$2,$3,$4)
-           ON CONFLICT (notice_date, company_name, city, employees_affected)
-           DO NOTHING;`,
-        [n.notice_date, n.company_name, n.city, n.employees_affected]
-      );
-      if (res.rowCount) {
-        inserted++;
-        console.log(`[scout-warn] Inserted notice for "${n.company_name}"`);
-      }
-    }
-    console.log(`[scout-warn] ${inserted} new records inserted.`);
-  } finally {
-    client.release();
+  // Setup DB
+  const pool = new Pool({
+    host:     process.env.PGHOST,
+    port:     parseInt(process.env.PGPORT, 10),
+    user:     process.env.PGUSER,
+    password: process.env.PGPASSWORD,
+    database: process.env.PGDATABASE,
+  });
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS scout_warn_leads (
+      id SERIAL PRIMARY KEY,
+      employer_name TEXT NOT NULL,
+      notice_date DATE NOT NULL,
+      raw JSONB,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  let inserted = 0;
+  for (const row of rows) {
+    const employer = row[empKey] ? String(row[empKey]).trim() : null;
+    const dateStr  = row[dateKey];
+    const noticeDate = dateStr ? new Date(dateStr) : null;
+    if (!employer || isNaN(noticeDate)) continue;
+    await pool.query(
+      `INSERT INTO scout_warn_leads(employer_name, notice_date, raw)
+       VALUES ($1, $2, $3) ON CONFLICT DO NOTHING;`,
+      [ employer, noticeDate.toISOString().split('T')[0], row ]
+    );
+    inserted++;
   }
+  console.log(`[scout-warn] Successfully inserted ${inserted} rows`);
+  await pool.end();
 }
 
 (async () => {
   try {
-    await ensureSchema();
-    await runScoutWarnMission();
-    console.log('[scout-warn] Done.');
-    process.exit(0);
+    await downloadExcel();
+    await loadAndInsert();
+    console.log('[scout-warn] All done.');
   } catch (err) {
-    console.error('[scout-warn] ERROR', err);
+    console.error('[scout-warn] Fatal error:', err);
     process.exit(1);
   }
 })();

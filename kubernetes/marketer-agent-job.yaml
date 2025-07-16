@@ -1,21 +1,38 @@
 # kubernetes/marketer-agent-job.yaml
-
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: marketer-agent-run
 spec:
+  backoffLimit: 0
   template:
     spec:
+      restartPolicy: Never
       containers:
       - name: marketer-agent
-        # Use the container image we built for the marketer agent.
         image: vltrn/marketer-agent:1.0.0
-        # This injects all keys (DB, Google, GitHub) from our comprehensive 
-        # secret as environment variables into the container.
+        # Pull in all your secrets (DB creds, Google keys, GitHub PAT, etc.)
         envFrom:
         - secretRef:
             name: vltrn-secrets
-      # This policy ensures that if the job fails, it will not automatically restart.
-      restartPolicy: Never
-  backoffLimit: 4
+        # Override Postgres connection to use the K8s service, not localhost
+        env:
+        - name: PGHOST
+          value: dataroom-db-service
+        - name: PGPORT
+          value: "5432"
+        - name: PGUSER
+          valueFrom:
+            secretKeyRef:
+              name: vltrn-secrets
+              key: POSTGRES_USER
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: vltrn-secrets
+              key: POSTGRES_PASSWORD
+        - name: PGDATABASE
+          valueFrom:
+            secretKeyRef:
+              name: vltrn-secrets
+              key: POSTGRES_DB

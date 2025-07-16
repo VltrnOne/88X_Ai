@@ -1,18 +1,21 @@
 // agents/marketer-agent/db.js
-require('dotenv').config();
+
+// Only load the .env file if we are NOT in a production environment.
+if (process.env.NODE_ENV !== 'production') {
+  require('dotenv').config({ path: '../../.env' });
+}
+
 const { Pool } = require('pg');
 
 const pool = new Pool({
-  host:     process.env.DB_HOST,
-  port:     parseInt(process.env.DB_PORT, 10),
-  user:     process.env.POSTGRES_USER,
-  password: process.env.POSTGRES_PASSWORD,
+  user: process.env.POSTGRES_USER,
+  host: process.env.DB_HOST,
   database: process.env.POSTGRES_DB,
-  connectionTimeoutMillis: 5000,
+  password: process.env.POSTGRES_PASSWORD,
+  port: process.env.DB_PORT,
 });
 
-pool.on('error', err => {
-  console.error('[marketer-agent][db] Unexpected PG client error', err);
-});
-
-module.exports = { pool };
+module.exports = {
+  query: (text, params) => pool.query(text, params),
+  pool,
+};

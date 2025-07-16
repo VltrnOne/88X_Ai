@@ -1,109 +1,91 @@
-// agents/marketer-agent/index.js
-require('dotenv').config();
-const axios = require('axios');
-const { pool } = require('./db');
+// File: agents/marketer-agent/index.js
 
-const GOOGLE_API_KEY     = process.env.GOOGLE_API_KEY;
-const SEARCH_ENGINE_ID   = process.env.SEARCH_ENGINE_ID;
-const GITHUB_PAT         = process.env.GITHUB_PAT;
+import dotenv from 'dotenv';
+import { Pool } from 'pg';
+import axios from 'axios';
 
-async function getCompanyDomain(companyName) {
-  console.log(`[VLTRN-Marketer][Google] Querying domain for "${companyName}"…`);
-  const url = 'https://www.googleapis.com/customsearch/v1'
-            + `?key=${GOOGLE_API_KEY}`
-            + `&cx=${SEARCH_ENGINE_ID}`
-            + `&q=${encodeURIComponent(companyName)}`;
-  try {
-    const res = await axios.get(url);
-    const items = res.data.items || [];
-    if (!items.length) {
-      console.log(`[VLTRN-Marketer][Google] No results for "${companyName}".`);
-      return null;
-    }
-    // take first link and normalize hostname
-    const link = new URL(items[0].link).hostname.replace(/^www\./,'');
-    console.log(`[VLTRN-Marketer][Google] Found domain: ${link}`);
-    return link;
-  } catch (err) {
-    console.error(`[VLTRN-Marketer][Google] API error:`, err.message);
-    return null;
-  }
-}
+dotenv.config();
 
-async function getContactsFromGitHub(domain) {
-  if (!domain) return [];
-  console.log(`[VLTRN-Marketer][GitHub] Searching commits for domain: ${domain}`);
-  const url = `https://api.github.com/search/commits?q=author-email:${domain}`;
-  try {
-    const res = await axios.get(url, {
-      headers: {
-        'Authorization': `token ${GITHUB_PAT}`,
-        'Accept':        'application/vnd.github.v3+json'
-      }
-    });
-    const commits = res.data.items || [];
-    const contacts = commits.map(c => ({
-      name:   c.commit.author.name,
-      email:  c.commit.author.email,
-      source: c.sha.slice(0,7)
-    }));
-    // dedupe by email
-    return [...new Map(contacts.map(c=>[c.email,c])).values()];
-  } catch (err) {
-    console.error(`[VLTRN-Marketer][GitHub] API error:`, err.message);
-    return [];
-  }
-}
-
-async function ensureSchema() {
-  console.log('[VLTRN-Marketer] Verifying warn_notices table…');
-  const client = await pool.connect();
-  try {
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS warn_notices (
-        id          SERIAL PRIMARY KEY,
-        payload     JSONB NOT NULL,
-        created_at  TIMESTAMPTZ DEFAULT NOW()
-      );
-    `);
-    console.log('[VLTRN-Marketer] Table "warn_notices" is ready.');
-  } finally {
-    client.release();
-  }
-}
-
-async function main() {
-  console.log('[VLTRN-Marketer] Starting enrichment…');
-  await ensureSchema();
-
-  const client = await pool.connect();
-  try {
-    const { rows } = await client.query(
-      `SELECT * FROM scout_warn_leads LIMIT 1`
-    );
-    if (!rows.length) {
-      console.log('[VLTRN-Marketer] No rows in scout_warn_leads → exiting.');
-      return;
-    }
-    const lead = rows[0];
-    console.log(`[VLTRN-Marketer] Processing lead: ${lead.company_name}`);
-
-    const domain   = await getCompanyDomain(lead.company_name);
-    const contacts = await getContactsFromGitHub(domain);
-
-    const payload = { ...lead, domain, contacts };
-    await client.query(
-      `INSERT INTO warn_notices (payload) VALUES ($1)`, 
-      [payload]
-    );
-    console.log('[VLTRN-Marketer] Inserted enriched payload into warn_notices.');
-  } finally {
-    client.release();
-    console.log('[VLTRN-Marketer] Done.');
-  }
-}
-
-main().catch(err => {
-  console.error('[VLTRN-Marketer] Fatal error:', err);
-  process.exit(1);
+// Setup Postgres connection pool
+const pool = new Pool({
+  host:     process.env.PGHOST,
+  port:     parseInt(process.env.PGPORT, 10),
+  user:     process.env.PGUSER,
+  password: process.env.PGPASSWORD,
+  database: process.env.PGDATABASE,
 });
+
+// Ensure enriched_leads table exists with appropriate schema
+async function ensureSchema() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS enriched_leads (
+      id            SERIAL PRIMARY KEY,
+      source_id     INTEGER NOT NULL,
+      employer_name TEXT,
+      layoff_date   DATE,
+      domain        TEXT,
+      contacts      JSONB,
+      created_at    TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+}
+
+// Fetch company domain using Google Custom Search API
+async function fetchDomain(company) {
+  console.log(`[VLTRN-Marketer][Google] Querying domain for "${company}"…`);
+  const res = await axios.get('https://www.googleapis.com/customsearch/v1', {
+    params: {
+      key: process.env.GOOGLE_API_KEY,
+      cx:  process.env.SEARCH_ENGINE_ID,
+      q:   `${company} official website`,
+    }
+  });
+  return res.data.items?.[0]?.displayLink || null;
+}
+
+// Main pipeline
+async function main() {
+  try {
+    console.log('[VLTRN-Marketer] Starting enrichment…');
+    await ensureSchema();
+
+    // Fetch leads to enrich
+    const { rows } = await pool.query(
+      'SELECT id, employer_name, layoff_date FROM scout_warn_leads;'
+    );
+    for (const row of rows) {
+      const { id, employer_name, layoff_date } = row;
+      console.log(`[VLTRN-Marketer] Processing lead: ${employer_name}`);
+
+      if (!employer_name) {
+        console.warn('[VLTRN-Marketer] Skipping empty employer_name');
+        continue;
+      }
+
+      let domain = null;
+      try {
+        domain = await fetchDomain(employer_name);
+      } catch (e) {
+        console.error(`[VLTRN-Marketer][Google] API error: ${e.message}`);
+      }
+
+      // Insert enriched lead
+      await pool.query(
+        `INSERT INTO enriched_leads 
+           (source_id, employer_name, layoff_date, domain, contacts) 
+         VALUES ($1, $2, $3, $4, $5)`,
+        [id, employer_name, layoff_date, domain, []]
+      );
+      console.log(`[VLTRN-Marketer] Inserted enriched lead for ${employer_name}`);
+    }
+
+    console.log('[VLTRN-Marketer] Done.');
+  } catch (err) {
+    console.error('[VLTRN-Marketer] Fatal error:', err);
+    process.exit(1);
+  } finally {
+    await pool.end();
+  }
+}
+
+main();
