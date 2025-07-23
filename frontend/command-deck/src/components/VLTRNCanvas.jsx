@@ -192,7 +192,7 @@ export default function VLTRNCanvas() {
         {/* Header */}
         <header className="text-center mb-12">
           <h1 className="text-6xl font-bold tracking-tight text-gray-900 mb-4">VLTRN</h1>
-          <p className="text-xl text-gray-600">Your Autonomous Acquisition Engine v6.0</p>
+          <p className="text-xl text-gray-600">Your Autonomous Acquisition Engine v6.0 - Deploy Test</p>
         </header>
 
         {/* Main Content */}
