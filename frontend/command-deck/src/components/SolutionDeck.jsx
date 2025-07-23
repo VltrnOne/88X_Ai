@@ -32,13 +32,13 @@ function SolutionDeck() {
     };
     
     const fetchResults = async () => {
-        try {
+    try {
             const response = await axios.get(`${API_BASE_URL}/api/missions/${missionId}/results`);
             setResults(response.data);
-        } catch (err) {
+    } catch (err) {
             console.error("Failed to fetch results", err);
-        }
-    };
+    }
+  };
 
     const interval = setInterval(pollStatus, 3000); // Poll every 3 seconds
     return () => clearInterval(interval); // Cleanup on component unmount

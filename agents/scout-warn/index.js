@@ -79,12 +79,12 @@ async function main() {
         
         if (!worksheet) {
             console.error('[scout-warn] Sheet not found:', sheetName);
-            return;
-        }
+    return;
+  }
         
         const rawData = xlsx.utils.sheet_to_json(worksheet, { header: 1 });
         console.log('[scout-warn] Parsed', rawData.length, 'rows');
-        
+
         // Log the first few rows to understand the structure
         console.log('[scout-warn] First 3 rows:', rawData.slice(0, 3));
         
@@ -93,9 +93,9 @@ async function main() {
         
         if (normalizedEvents.length === 0) {
             console.log('[scout-warn] No valid events found. Raw data sample:', rawData.slice(0, 5));
-            return;
-        }
-        
+    return;
+  }
+
         // Insert into database
         const client = await pool.connect();
         try {
@@ -122,10 +122,10 @@ async function main() {
     } catch (error) {
         console.error('[scout-warn] Error:', error);
     } finally {
-        await pool.end();
-    }
-    
-    console.log('[scout-warn] All done.');
+  await pool.end();
 }
+
+    console.log('[scout-warn] All done.');
+  }
 
 main();

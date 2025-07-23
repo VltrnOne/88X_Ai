@@ -88,7 +88,7 @@ app.post('/api/missions/execute', async (req, res) => {
   try {
     const parsedIntent = parsePrompt(prompt);
     const missionPlan = generateMissionPlan(parsedIntent);
-    
+
     // Create mission record
     const missionResult = await pool.query(
       'INSERT INTO missions (prompt, parsed_intent, mission_plan, status, created_at) VALUES ($1, $2, $3, $4, NOW()) RETURNING id',

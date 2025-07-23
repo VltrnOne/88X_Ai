@@ -48,25 +48,56 @@ services:
         condition: service_healthy
     command: npm start
 
-  # ──────────── Intent-Parser & Orchestrator ────────────
+  # ──────────── Intent-Parser Service ────────────
   intent-parser:
     build:
-      context: ./agents/intent-parser
+      context: ./intent-parser
       dockerfile: Dockerfile
     image: vltrn/intent-parser:1.0.0
     container_name: vltrn-intent-parser
     ports:
-      - "4000:4000"
+      - "8081:8081"
+    env_file:
+      - .env
+    restart: always
+
+  # ──────────── Mission-Strategist Service ────────────
+  mission-strategist:
+    build:
+      context: ./mission-strategist
+      dockerfile: Dockerfile
+    image: vltrn/mission-strategist:1.0.0
+    container_name: vltrn-mission-strategist
+    ports:
+      - "8082:8082"
+    env_file:
+      - .env
+    restart: always
+
+  # ──────────── Stateful Orchestrator Service ────────────
+  orchestrator:
+    build:
+      context: ./orchestrator
+      dockerfile: Dockerfile
+    image: vltrn/orchestrator:1.0.0
+    container_name: vltrn-orchestrator
+    ports:
+      - "8080:8080"
     env_file:
       - .env
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - ./docker-compose.yaml:/docker-compose.yaml
+      - ./.env:/.env
     depends_on:
       dataroom-db:
         condition: service_healthy
-      redis:
-        condition: service_started
-    command: npm start
+    restart: always
+
+  # --- New Python Selenium Agent ---
+  scout-selenium-py:
+    build: ./agents/scout-selenium-py
+    # This agent is run on-demand, so no restart policy or ports needed
 
   # ──────────── Redis for BullMQ ────────────
   redis:

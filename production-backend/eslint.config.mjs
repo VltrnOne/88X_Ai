@@ -16,7 +16,7 @@ export default [
       }
     },
     rules: {
-        ...js.configs.recommended.rules,
+      ...js.configs.recommended.rules,
       "no-unused-vars": "warn",
       "no-console": "off", // Allow console.log for debugging
       "prefer-const": "error",

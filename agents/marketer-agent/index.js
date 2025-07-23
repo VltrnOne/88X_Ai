@@ -63,23 +63,23 @@ async function main() {
     return;
   }
   
-  console.log('[VLTRN-Marketer] Starting enrichment…');
+    console.log('[VLTRN-Marketer] Starting enrichment…');
   
   try {
     await initializeSchema();
     console.log('[VLTRN-Marketer] Schema initialized successfully.');
-    
+
     // Get companies from warn_notices table
     const result = await pool.query('SELECT DISTINCT company_name FROM warn_notices LIMIT 5');
     const companies = result.rows;
     
     console.log(`[VLTRN-Marketer] Found ${companies.length} companies to enrich`);
-    
+
     if (companies.length === 0) {
       console.log('[VLTRN-Marketer] No companies found in warn_notices table');
       return;
-    }
-    
+      }
+
     const allFoundContacts = [];
     
     for (const company of companies) {

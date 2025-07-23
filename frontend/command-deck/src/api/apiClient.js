@@ -1,24 +1,28 @@
-import axios from 'axios';
+// Dynamic API base URL for local and production
+const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const API_BASE_URL = isDevelopment ? 'http://localhost:8080' : 'https://vlzen.com';
 
-// Create a dedicated axios instance for our API
-const apiClient = axios.create({
-  baseURL: 'http://localhost:4000', // The base URL for our orchestrator
-});
-
-// Use an interceptor to attach the JWT to every request
-apiClient.interceptors.request.use(
-  (config) => {
-    // Retrieve the token from localStorage
-    const token = localStorage.getItem('vltrn-token');
-    if (token) {
-      // If the token exists, add the Authorization header
-      config.headers['Authorization'] = `Bearer ${token}`;
+const apiClient = {
+  post: async (path, body) => {
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+      const errorResult = await response.json().catch(() => ({ error: 'API request failed with no valid JSON response' }));
+      throw new Error(errorResult.error || 'API request failed');
     }
-    return config;
+    return response.json();
   },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
+  get: async (path) => {
+    const response = await fetch(`${API_BASE_URL}${path}`);
+    if (!response.ok) {
+      const errorResult = await response.json().catch(() => ({ error: 'API request failed with no valid JSON response' }));
+      throw new Error(errorResult.error || 'API request failed');
+    }
+    return response.json();
+  },
+};
 
 export default apiClient;

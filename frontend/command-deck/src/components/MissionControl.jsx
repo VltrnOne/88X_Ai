@@ -15,7 +15,7 @@ const MissionControl = () => {
     try {
       // **FIXED**: The API endpoint is now corrected to '/api/launch-agent'
       const response = await apiClient.post('/api/launch-agent', {
-        agentName: 'scout-salesnav',
+        agentName: 'scout-selenium-py',
         prompt: prompt
       });
       setMessage(response.data.message);
