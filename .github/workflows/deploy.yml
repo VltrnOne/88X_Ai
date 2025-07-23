@@ -1,0 +1,54 @@
+# .github/workflows/deploy.yml
+
+name: Deploy VLTRN Frontend to Production
+
+on:
+  push:
+    branches:
+      - main # This workflow runs only on pushes to the main branch
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Check out the repository's code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Set up Node.js environment
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Step 3: Install dependencies for the React app
+      - name: Install Dependencies
+        run: |
+          cd frontend/command-deck
+          npm install
+
+      # Step 4: Build the React application for production
+      - name: Build Application
+        run: |
+          cd frontend/command-deck
+          npm run build
+
+      # Step 5: Deploy the built files to SiteGround via FTP
+      - name: FTP Deploy
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+        with:
+          # The FTP server address, from your GitHub secrets
+          server: ${{ secrets.FTP_SERVER }}
+          # The FTP username, from your GitHub secrets
+          username: ${{ secrets.FTP_USERNAME }}
+          # The FTP password, from your GitHub secrets
+          password: ${{ secrets.FTP_PASSWORD }}
+          # This is the folder on the server to deploy to.
+          # It MUST match the document root for vlzen.com.
+          # Common paths are 'public_html/' or 'public_html/vlzen.com/'.
+          # VERIFY THIS PATH IN YOUR SITEGROUND FILE MANAGER.
+          server-dir: public_html/vlzen.com/
+          # This is the local folder to upload from. It must match the output
+          # of your 'npm run build' command (usually 'dist' or 'build').
+          local-dir: ./frontend/command-deck/dist/ 
