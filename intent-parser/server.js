@@ -8,7 +8,11 @@ const port = 8081;
 // --- CONFIGURATION ---
 // Set to true to bypass the live API and return a predictable mock object.
 // Set to false to use the live Gemini API (requires an API key).
-const MOCK_ENABLED = true;
+const MOCK_ENABLED = false;
+
+// --- API CONFIGURATION ---
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
 app.use(cors());
 app.use(express.json());
@@ -71,8 +75,8 @@ app.post('/parse-intent', async (req, res) => {
         { role: "user", parts: [{ text: systemPrompt + "\n\nUser Prompt: " + userPrompt }] }
     ];
     const payload = { contents: chatHistory };
-    const apiKey = ""; // Canvas will provide this
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const apiKey = GEMINI_API_KEY; // Canvas will provide this
+    const apiUrl = `${GEMINI_API_URL}?key=${apiKey}`;
 
     const response = await fetch(apiUrl, {
         method: 'POST',

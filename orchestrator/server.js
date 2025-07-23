@@ -49,7 +49,8 @@ async function verifyDatabaseSchema() {
         status VARCHAR(50) NOT NULL DEFAULT 'pending',
         result_data JSONB,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(mission_id, step_number)
       );
     `);
     
@@ -217,6 +218,215 @@ app.post('/api/execute-blueprint', async (req, res) => {
     res.status(500).json({ error: 'Failed to process blueprint.' });
   }
 });
+
+// NEW: Endpoint for VLTRN 6.0 Conversational Canvas workflow
+app.post('/api/execute-plan', async (req, res) => {
+  const executionPlan = req.body;
+  if (!executionPlan || !executionPlan.planId || !executionPlan.steps) {
+    return res.status(400).json({ error: 'A valid ExecutionPlan object is required.' });
+  }
+
+  console.log(`[Orchestrator] Received ExecutionPlan for mission: "${executionPlan.planId}"`);
+
+  try {
+    // Save mission to database
+    try {
+      const client = await pool.connect();
+      const insertQuery = `
+        INSERT INTO missions (plan_id, status, mission_brief, execution_plan)
+        VALUES ($1, $2, $3, $4) RETURNING *;
+      `;
+      const values = [
+        executionPlan.planId, 
+        'running', 
+        JSON.stringify(executionPlan.originalBrief || {}), 
+        JSON.stringify(executionPlan)
+      ];
+      
+      const { rows } = await client.query(insertQuery, values);
+      const newMission = rows[0];
+      client.release();
+      
+      console.log(`[Orchestrator] Mission ${newMission.id} saved to database.`);
+      
+      // Respond to the client immediately
+      res.status(202).json({ 
+          message: 'ExecutionPlan accepted and mission initiated.', 
+          missionId: newMission.id, 
+          planId: executionPlan.planId 
+      });
+
+      // Execute the mission steps sequentially
+      await executeMissionSteps(executionPlan, newMission.id);
+      
+    } catch (dbError) {
+      console.warn('[Orchestrator] Database save failed, using in-memory fallback:', dbError);
+      
+      // Fallback to in-memory storage
+      const newMission = {
+        id: Date.now(),
+        plan_id: executionPlan.planId,
+        status: 'running',
+        mission_brief: executionPlan.originalBrief || {},
+        execution_plan: executionPlan,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      
+      missions.set(executionPlan.planId, newMission);
+      console.log(`[Orchestrator] Mission ${newMission.id} saved to memory.`);
+
+      // Respond to the client immediately
+      res.status(202).json({ 
+          message: 'ExecutionPlan accepted and mission initiated.', 
+          missionId: newMission.id, 
+          planId: executionPlan.planId 
+      });
+
+      // Execute the mission steps sequentially
+      await executeMissionSteps(executionPlan, newMission.id);
+    }
+
+  } catch (error) {
+    console.error('[Orchestrator] Failed to save or execute plan:', error);
+    res.status(500).json({ error: 'Failed to process execution plan.' });
+  }
+});
+
+// NEW: Enhanced mission execution with data handoffs
+async function executeMissionSteps(executionPlan, missionId) {
+  console.log(`[Orchestrator] Starting execution of mission ${missionId} with ${executionPlan.steps.length} steps`);
+  
+  let previousStepOutput = null;
+  
+  for (let i = 0; i < executionPlan.steps.length; i++) {
+    const step = executionPlan.steps[i];
+    console.log(`[Orchestrator] Executing step ${i + 1}/${executionPlan.steps.length}: ${step.agent}`);
+    
+    try {
+      // Update step status to running
+      await updateStepStatus(missionId, step.step, 'running');
+      
+      // Execute the step with previous output as input
+      const stepResult = await executeStepWithDataHandoff(step, previousStepOutput);
+      
+      // Store step result
+      await storeStepResult(missionId, step.step, step.agent, 'completed', stepResult);
+      
+      // Pass output to next step
+      previousStepOutput = stepResult;
+      
+      console.log(`[Orchestrator] Step ${step.step} completed successfully`);
+      
+    } catch (error) {
+      console.error(`[Orchestrator] Step ${step.step} failed:`, error);
+      await updateStepStatus(missionId, step.step, 'failed');
+      await storeStepResult(missionId, step.step, step.agent, 'failed', { error: error.message });
+      break; // Stop execution on failure
+    }
+  }
+  
+  // Update mission status
+  await updateMissionStatus(missionId, 'completed');
+  console.log(`[Orchestrator] Mission ${missionId} execution completed`);
+}
+
+// NEW: Execute step with data handoff
+async function executeStepWithDataHandoff(step, previousOutput) {
+  console.log(`[Orchestrator] Executing ${step.agent} with params:`, step.params);
+  
+  // Map agent names to actual services
+  const agentServiceMap = {
+    'google-search': 'scout-selenium-py',
+    'scout-selenium-py': 'scout-selenium-py',
+    'lead-scorer': 'scout-selenium-py', // Placeholder - implement actual lead scorer
+    'campaign-crafter': 'scout-selenium-py', // Placeholder - implement actual campaign crafter
+    'scout-warn': 'scout-warn',
+    'marketer-agent': 'marketer-agent',
+    'marketer-enrich': 'marketer-enrich'
+  };
+  
+  const serviceToRun = agentServiceMap[step.agent];
+  
+  if (serviceToRun) {
+    // For now, launch the service and return mock result
+    // In production, this would make API calls to the actual services
+    const command = `docker-compose -f /docker-compose.yaml -p vltrn-system up -d ${serviceToRun}`;
+    try {
+      console.log(`[Orchestrator] Launching service: ${serviceToRun}`);
+      const { stdout, stderr } = await execPromise(command);
+      if (stderr) console.warn(`[Orchestrator] Stderr during ${serviceToRun} launch:`, stderr);
+      console.log(`[Orchestrator] Agent ${serviceToRun} launched successfully.`, stdout);
+      
+      // Return mock result for now
+      return {
+        step: step.step,
+        agent: step.agent,
+        status: 'completed',
+        output: `Mock output from ${step.agent}`,
+        timestamp: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error(`[Orchestrator] FATAL: Failed to launch agent ${serviceToRun}.`, error);
+      throw error;
+    }
+  } else {
+    console.log(`[Orchestrator] Mock execution for step. No runnable agent found for:`, step);
+    return {
+      step: step.step,
+      agent: step.agent,
+      status: 'completed',
+      output: `Mock output from ${step.agent}`,
+      timestamp: new Date().toISOString()
+    };
+  }
+}
+
+// NEW: Update step status
+async function updateStepStatus(missionId, stepNumber, status) {
+  try {
+    const client = await pool.connect();
+    await client.query(`
+      UPDATE mission_results 
+      SET status = $1, updated_at = CURRENT_TIMESTAMP 
+      WHERE mission_id = $2 AND step_number = $3
+    `, [status, missionId, stepNumber]);
+    client.release();
+  } catch (error) {
+    console.warn('[Orchestrator] Failed to update step status in database:', error);
+  }
+}
+
+// NEW: Store step result
+async function storeStepResult(missionId, stepNumber, agentName, status, resultData) {
+  try {
+    const client = await pool.connect();
+    await client.query(`
+      INSERT INTO mission_results (mission_id, step_number, agent_name, status, result_data)
+      VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT (mission_id, step_number) 
+      DO UPDATE SET status = $4, result_data = $5, updated_at = CURRENT_TIMESTAMP
+    `, [missionId, stepNumber, agentName, status, JSON.stringify(resultData)]);
+    client.release();
+  } catch (error) {
+    console.warn('[Orchestrator] Failed to store step result in database:', error);
+  }
+}
+
+// NEW: Update mission status
+async function updateMissionStatus(missionId, status) {
+  try {
+    const client = await pool.connect();
+    await client.query(`
+      UPDATE missions 
+      SET status = $1, updated_at = CURRENT_TIMESTAMP 
+      WHERE id = $2
+    `, [status, missionId]);
+    client.release();
+  } catch (error) {
+    console.warn('[Orchestrator] Failed to update mission status in database:', error);
+  }
+}
 
 // Endpoint to get the status of all missions
 app.get('/api/missions', async (req, res) => {
