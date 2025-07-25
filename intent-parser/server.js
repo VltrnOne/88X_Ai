@@ -3,25 +3,41 @@ import cors from 'cors';
 import { Buffer } from 'buffer'; // Node.js Buffer
 
 const app = express();
-const port = 8081;
+const port = 3001;
 
 // --- CONFIGURATION ---
 // Set to true to bypass the live API and return a predictable mock object.
 // Set to false to use the live Gemini API (requires an API key).
-const MOCK_ENABLED = false;
+const MOCK_ENABLED = true;
 
 // --- API CONFIGURATION ---
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:5173' // Allow requests from your frontend development server
+}));
 app.use(express.json());
+
+// Add debugging middleware
+app.use((req, res, next) => {
+  console.log(`[Intent Parser] ${req.method} ${req.path} - ${new Date().toISOString()}`);
+  next();
+});
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  console.log('[Intent Parser] Health check requested');
+  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
 
 // This is the core endpoint for parsing user intent.
 app.post('/parse-intent', async (req, res) => {
+  console.log('[Intent Parser] /parse-intent endpoint called');
   const userPrompt = req.body.prompt;
 
   if (!userPrompt) {
+    console.log('[Intent Parser] No prompt provided');
     return res.status(400).json({ error: 'A "prompt" is required in the request body.' });
   }
 
@@ -49,6 +65,7 @@ app.post('/parse-intent', async (req, res) => {
       },
       rawPrompt: userPrompt
     };
+    console.log('[Intent Parser] Sending mock response');
     return res.json(mockMissionBrief);
   }
 
@@ -113,6 +130,6 @@ app.post('/parse-intent', async (req, res) => {
   }
 });
 
-app.listen(port, () => {
+app.listen(port, '0.0.0.0', () => {
   console.log(`🚀 VLTRN Intent Parser is online and listening on port ${port}`);
 }); 

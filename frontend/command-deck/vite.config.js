@@ -7,12 +7,12 @@ export default defineConfig({
   server: {
     proxy: {
       '/api/parse-intent': {
-        target: 'http://localhost:8081',
+        target: 'http://localhost:3001',
         changeOrigin: true,
         rewrite: (path) => path.replace('/api/parse-intent', '/parse-intent')
       },
       '/api/generate-plan': {
-        target: 'http://localhost:8082',
+        target: 'http://localhost:3002',
         changeOrigin: true,
         rewrite: (path) => path.replace('/api/generate-plan', '/generate-plan')
       },

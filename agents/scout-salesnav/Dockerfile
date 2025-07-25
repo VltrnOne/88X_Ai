@@ -1,6 +1,13 @@
 # Use a specific Node.js version for stability
 FROM node:18-slim
 
+# Install bash and other essential tools for dev container compatibility
+RUN apt-get update && apt-get install -y \
+    bash \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
 # Set the working directory inside the container
 WORKDIR /app
 

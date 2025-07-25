@@ -2,17 +2,19 @@ import express from 'express';
 import cors from 'cors';
 
 const app = express();
-const port = 8082;
+const port = 3002;
 
 // --- CONFIGURATION ---
 // Mock mode is enabled to return a predictable ExecutionPlan.
-const MOCK_ENABLED = false;
+const MOCK_ENABLED = true; // Temporarily enabled due to API rate limit
 
 // --- API CONFIGURATION ---
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:5173' // Allow requests from your frontend development server
+}));
 app.use(express.json());
 
 // This endpoint receives a MissionBrief and returns a multi-step ExecutionPlan.

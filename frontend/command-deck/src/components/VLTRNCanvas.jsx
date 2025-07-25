@@ -3,6 +3,7 @@ import React, { useState, useCallback } from 'react';
 // --- API Client (Production Standard) ---
 const apiClient = {
   post: async (path, body) => {
+    // Use relative URLs to go through Vite proxy
     const response = await fetch(path, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

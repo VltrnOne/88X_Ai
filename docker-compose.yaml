@@ -56,7 +56,7 @@ services:
     image: vltrn/intent-parser:1.0.0
     container_name: vltrn-intent-parser
     ports:
-      - "8081:8081"
+      - "3001:3001"
     env_file:
       - .env
     restart: always
@@ -69,7 +69,7 @@ services:
     image: vltrn/mission-strategist:1.0.0
     container_name: vltrn-mission-strategist
     ports:
-      - "8082:8082"
+      - "3002:3002"
     env_file:
       - .env
     restart: always
@@ -98,6 +98,20 @@ services:
   scout-selenium-py:
     build: ./agents/scout-selenium-py
     # This agent is run on-demand, so no restart policy or ports needed
+
+  # ──────────── Scout-SalesNav Agent ────────────
+  scout-salesnav:
+    build:
+      context: ./agents/scout-salesnav
+      dockerfile: Dockerfile
+    image: vltrn/scout-salesnav:1.0.0
+    container_name: vltrn-scout-salesnav
+    env_file:
+      - .env
+    depends_on:
+      dataroom-db:
+        condition: service_healthy
+    command: npm start
 
   # ──────────── Redis for BullMQ ────────────
   redis:

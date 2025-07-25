@@ -17,7 +17,9 @@ const pool = new pg.Pool({
   database: process.env.DB_NAME || 'dataroom',
 });
 
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:5173' // Allow requests from your frontend development server
+}));
 app.use(express.json());
 
 // --- Database Schema Verification ---
