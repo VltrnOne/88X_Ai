@@ -1,21 +1,8 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
+import { apiClient } from '../api/apiClient.js';
+import MissionResults from './MissionResults.jsx';
 
-// --- API Client (Production Standard) ---
-const apiClient = {
-  post: async (path, body) => {
-    // Use relative URLs to go through Vite proxy
-    const response = await fetch(path, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    if (!response.ok) {
-      const errorResult = await response.json().catch(() => ({ error: 'API request failed' }));
-      throw new Error(errorResult.error);
-    }
-    return response.json();
-  },
-};
+// API client is now imported from apiClient.js
 
 // --- Agent Icon Mapping ---
 const agentIcons = {
@@ -116,6 +103,8 @@ export default function VLTRNCanvas() {
   const [status, setStatus] = useState('idle'); // idle, planning, plan-ready, executing, complete, error
   const [statusMessage, setStatusMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const [missionId, setMissionId] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -127,11 +116,11 @@ export default function VLTRNCanvas() {
 
     try {
       // Step 1: Parse Intent
-      const missionBrief = await apiClient.post('/api/parse-intent', { prompt });
+      const missionBrief = await apiClient.parseIntent(prompt);
       setStatusMessage('Generating execution strategy...');
       
       // Step 2: Generate Plan
-      const plan = await apiClient.post('/api/generate-plan', missionBrief);
+      const plan = await apiClient.generatePlan(missionBrief);
       setExecutionPlan(plan);
       setStatus('plan-ready');
       setStatusMessage('Strategy ready for review.');
@@ -152,9 +141,16 @@ export default function VLTRNCanvas() {
     setStatusMessage('Launching mission...');
     
     try {
-      const result = await apiClient.post('/api/execute-plan', executionPlan);
+      const result = await apiClient.executePlan(executionPlan);
       setStatus('complete');
-      setStatusMessage(`Mission launched successfully. ID: ${result.planId || 'N/A'}`);
+      setStatusMessage(`Mission launched successfully. ID: ${result.missionId || 'N/A'}`);
+      setMissionId(result.missionId);
+      
+      // Immediately show results for mock system
+      setTimeout(() => {
+        setShowResults(true);
+      }, 1000); // Brief delay for UX
+      
     } catch (error) {
       console.error("Failed to execute plan:", error);
       setStatus('error');
@@ -162,18 +158,25 @@ export default function VLTRNCanvas() {
     }
   };
 
-  const handleEditStep = useCallback((index, updatedStep) => {
+  const handleEditStep = (index, updatedStep) => {
     setExecutionPlan(prev => ({
       ...prev,
       steps: prev.steps.map((step, i) => i === index ? updatedStep : step)
     }));
-  }, []);
+  };
 
   const handleReset = () => {
     setExecutionPlan(null);
     setStatus('idle');
     setStatusMessage('');
     setPrompt('');
+    setShowResults(false);
+    setMissionId(null);
+  };
+
+  const handleBackFromResults = () => {
+    setShowResults(false);
+    setMissionId(null);
   };
 
   const getStatusColor = () => {
@@ -260,21 +263,21 @@ export default function VLTRNCanvas() {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-4">
+              <div className="flex gap-4 mt-8">
                 <button
                   onClick={handleReset}
-                  className="flex-1 py-3 px-6 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 transition"
+                  className="flex-1 py-3 px-6 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition"
                 >
                   Start Over
                 </button>
                 <button
                   onClick={handleExecutePlan}
-                  disabled={status === 'executing' || status === 'complete'}
-                  className="flex-1 py-3 px-6 bg-green-600 text-white font-semibold rounded-xl shadow-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:bg-green-300 disabled:cursor-not-allowed transition"
+                  disabled={status === 'executing'}
+                  className="flex-1 py-3 px-6 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition"
                 >
                   {status === 'executing' ? (
                     <div className="flex items-center justify-center gap-2">
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       Launching...
                     </div>
                   ) : (
@@ -282,7 +285,24 @@ export default function VLTRNCanvas() {
                   )}
                 </button>
               </div>
+
+              {/* View Results Button (appears after completion) */}
+              {status === 'complete' && missionId && (
+                <div className="mt-4 text-center">
+                  <button
+                    onClick={() => setShowResults(true)}
+                    className="py-3 px-8 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 transition"
+                  >
+                    View Mission Results
+                  </button>
+                </div>
+              )}
             </div>
+          )}
+
+          {/* Results Phase */}
+          {showResults && missionId && (
+            <MissionResults missionId={missionId} onBack={handleBackFromResults} />
           )}
         </div>
 

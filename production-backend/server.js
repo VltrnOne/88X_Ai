@@ -180,6 +180,100 @@ app.get('/api/missions', (req, res) => {
   res.json(mockMissions);
 });
 
+// Mission Results Endpoint
+app.get('/api/missions/:missionId/results', (req, res) => {
+  const { missionId } = req.params;
+  
+  // Mock mission results with structured data
+  const mockMissionResults = {
+    missionId: missionId,
+    status: 'completed',
+    missionSummary: {
+      originalPrompt: 'find newly laid off tech in california making at least 65k',
+      parsedPersona: 'Tech Employee',
+      parsedGeography: 'California',
+      parsedFinancials: 'Salary > $65,000'
+    },
+    executionMetrics: {
+      totalLeadsFound: 450,
+      companiesIdentified: 25,
+      contactsEnriched: 380,
+      enrichmentRate: '84.4%',
+      missionDuration: '7m 14s'
+    },
+    leads: [
+      {
+        id: 'lead-001',
+        name: 'Jane Doe',
+        title: 'Senior Software Engineer',
+        company: 'TechCorp Inc.',
+        location: 'San Francisco, CA',
+        linkedinUrl: 'https://linkedin.com/in/janedoe-tech',
+        email: 'jane.doe@email.com',
+        status: 'Enriched'
+      },
+      {
+        id: 'lead-002',
+        name: 'John Smith',
+        title: 'Product Manager',
+        company: 'Innovate LLC',
+        location: 'Los Angeles, CA',
+        linkedinUrl: 'https://linkedin.com/in/johnsmith-pm',
+        email: 'john.smith@email.com',
+        status: 'Enriched'
+      },
+      {
+        id: 'lead-003',
+        name: 'Sarah Johnson',
+        title: 'DevOps Engineer',
+        company: 'TechCorp Inc.',
+        location: 'San Francisco, CA',
+        linkedinUrl: 'https://linkedin.com/in/sarahjohnson-devops',
+        email: 'sarah.johnson@email.com',
+        status: 'Enriched'
+      },
+      {
+        id: 'lead-004',
+        name: 'Mike Chen',
+        title: 'Frontend Developer',
+        company: 'StartupXYZ',
+        location: 'San Diego, CA',
+        linkedinUrl: 'https://linkedin.com/in/mikechen-frontend',
+        email: 'mike.chen@email.com',
+        status: 'Enriched'
+      },
+      {
+        id: 'lead-005',
+        name: 'Emily Rodriguez',
+        title: 'Data Scientist',
+        company: 'TechCorp Inc.',
+        location: 'San Francisco, CA',
+        linkedinUrl: 'https://linkedin.com/in/emilyrodriguez-data',
+        email: 'emily.rodriguez@email.com',
+        status: 'Enriched'
+      }
+    ],
+    visualizations: {
+      leadsByCompany: [
+        { company: 'TechCorp Inc.', count: 75 },
+        { company: 'Innovate LLC', count: 62 },
+        { company: 'StartupXYZ', count: 45 },
+        { company: 'DataFlow Systems', count: 38 },
+        { company: 'CloudTech Solutions', count: 32 }
+      ],
+      leadsByLocation: [
+        { city: 'San Francisco', count: 150 },
+        { city: 'Los Angeles', count: 95 },
+        { city: 'San Diego', count: 78 },
+        { city: 'San Jose', count: 65 },
+        { city: 'Sacramento', count: 42 }
+      ]
+    }
+  };
+
+  res.json(mockMissionResults);
+});
+
 // Start the server
 app.listen(port, '0.0.0.0', () => {
   console.log(`🚀 VLTRN Production Server is online and listening on port ${port}`);

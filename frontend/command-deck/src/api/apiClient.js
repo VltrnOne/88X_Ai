@@ -1,28 +1,79 @@
-// Dynamic API base URL for local and production
-const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-const API_BASE_URL = isDevelopment ? 'http://localhost:8080' : 'https://vlzen.com';
+import { API_CONFIG } from '../config.js';
 
-const apiClient = {
-  post: async (path, body) => {
-    const response = await fetch(`${API_BASE_URL}${path}`, {
+class ApiClient {
+  constructor() {
+    this.baseUrl = API_CONFIG.baseUrl;
+  }
+
+  async request(endpoint, options = {}) {
+    const url = `${this.baseUrl}${endpoint}`;
+    
+    const defaultOptions = {
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+      },
+      ...options
+    };
+
+    try {
+      const response = await fetch(url, defaultOptions);
+      
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('API request error:', error);
+      throw error;
+    }
+  }
+
+  // Intent Parser
+  async parseIntent(prompt) {
+    return this.request(API_CONFIG.endpoints.parseIntent, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ prompt })
     });
-    if (!response.ok) {
-      const errorResult = await response.json().catch(() => ({ error: 'API request failed with no valid JSON response' }));
-      throw new Error(errorResult.error || 'API request failed');
-    }
-    return response.json();
-  },
-  get: async (path) => {
-    const response = await fetch(`${API_BASE_URL}${path}`);
-    if (!response.ok) {
-      const errorResult = await response.json().catch(() => ({ error: 'API request failed with no valid JSON response' }));
-      throw new Error(errorResult.error || 'API request failed');
-    }
-    return response.json();
-  },
-};
+  }
 
-export default apiClient;
+  // Mission Strategist
+  async generatePlan(missionBrief) {
+    return this.request(API_CONFIG.endpoints.generatePlan, {
+      method: 'POST',
+      body: JSON.stringify(missionBrief)
+    });
+  }
+
+  // Mission Execution
+  async executePlan(executionPlan) {
+    return this.request(API_CONFIG.endpoints.executePlan, {
+      method: 'POST',
+      body: JSON.stringify(executionPlan)
+    });
+  }
+
+  // Get Missions
+  async getMissions() {
+    return this.request(API_CONFIG.endpoints.getMissions, {
+      method: 'GET'
+    });
+  }
+
+  // Health Check
+  async healthCheck() {
+    return this.request(API_CONFIG.endpoints.health, {
+      method: 'GET'
+    });
+  }
+
+  // Get Mission Results
+  async getMissionResults(missionId) {
+    return this.request(`${API_CONFIG.endpoints.getMissions}/${missionId}/results`, {
+      method: 'GET'
+    });
+  }
+}
+
+export const apiClient = new ApiClient();

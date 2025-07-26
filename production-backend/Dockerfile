@@ -1,24 +1,20 @@
-# Use an Alpine-based Node for smaller image
-FROM node:20-alpine
+# Use Node.js 18 alpine for Google Cloud Run
+FROM node:18-alpine
 
-# Install Docker CLI and Docker Compose
-RUN apk add --no-cache curl && \
-    curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-24.0.7.tgz | tar -xzC /tmp && \
-    cp /tmp/docker/docker /usr/local/bin/ && \
-    rm -rf /tmp/docker && \
-    curl -L "https://github.com/docker/compose/releases/download/v2.23.3/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose && \
-    chmod +x /usr/local/bin/docker-compose && \
-    apk del curl
+# Set working directory
+WORKDIR /app
 
-# inside container, work in /usr/src/app/orchestrator
-WORKDIR /usr/src/app/orchestrator
+# Copy package files
+COPY package*.json ./
 
-# copy over package files & install  
-COPY package.json package-lock.json ./
-RUN npm install
+# Install dependencies
+RUN npm ci --only=production
 
-# now copy the rest of your code
+# Copy application code
 COPY . .
 
-# default to the production start
-CMD ["npm", "start"]
+# Expose port
+EXPOSE 8080
+
+# Start the application
+CMD ["node", "server.js"]
