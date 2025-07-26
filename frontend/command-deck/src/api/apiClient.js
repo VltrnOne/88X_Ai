@@ -74,6 +74,76 @@ class ApiClient {
       method: 'GET'
     });
   }
+
+  // --- NEW LIVE SEARCH METHODS ---
+  
+  async liveSearch(query, sources = ['linkedin', 'google', 'warn'], filters = {}) {
+    const url = `${this.baseUrl}/live-search`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query, sources, filters }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Live search failed: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  async searchLinkedIn(query, filters = {}) {
+    const url = `${this.baseUrl}/search/linkedin`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query, filters }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`LinkedIn search failed: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  async searchGoogle(query, filters = {}) {
+    const url = `${this.baseUrl}/search/google`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query, filters }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Google search failed: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  async searchWARN(query, filters = {}) {
+    const url = `${this.baseUrl}/search/warn`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query, filters }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`WARN search failed: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
 }
 
 export const apiClient = new ApiClient();

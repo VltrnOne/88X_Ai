@@ -274,6 +274,253 @@ app.get('/api/missions/:missionId/results', (req, res) => {
   res.json(mockMissionResults);
 });
 
+// --- NEW LIVE SEARCH ENDPOINTS ---
+
+// Live Multi-Source Search Endpoint
+app.post('/api/live-search', async (req, res) => {
+  const { query, sources = ['linkedin', 'google', 'warn'], filters = {} } = req.body;
+
+  if (!query) {
+    return res.status(400).json({ error: 'A "query" is required in the request body.' });
+  }
+
+  console.log(`[Live Search] Received query: "${query}" with sources: ${sources.join(', ')}`);
+
+  try {
+    const searchResults = await performLiveSearch(query, sources, filters);
+    res.json(searchResults);
+  } catch (error) {
+    console.error('[Live Search] Error:', error);
+    res.status(500).json({ error: 'Search failed', details: error.message });
+  }
+});
+
+// Live LinkedIn Search
+app.post('/api/search/linkedin', async (req, res) => {
+  const { query, filters = {} } = req.body;
+
+  if (!query) {
+    return res.status(400).json({ error: 'A "query" is required in the request body.' });
+  }
+
+  console.log(`[LinkedIn Search] Received query: "${query}"`);
+
+  try {
+    const results = await searchLinkedIn(query, filters);
+    res.json(results);
+  } catch (error) {
+    console.error('[LinkedIn Search] Error:', error);
+    res.status(500).json({ error: 'LinkedIn search failed', details: error.message });
+  }
+});
+
+// Live Google Search
+app.post('/api/search/google', async (req, res) => {
+  const { query, filters = {} } = req.body;
+
+  if (!query) {
+    return res.status(400).json({ error: 'A "query" is required in the request body.' });
+  }
+
+  console.log(`[Google Search] Received query: "${query}"`);
+
+  try {
+    const results = await searchGoogle(query, filters);
+    res.json(results);
+  } catch (error) {
+    console.error('[Google Search] Error:', error);
+    res.status(500).json({ error: 'Google search failed', details: error.message });
+  }
+});
+
+// Live WARN Search
+app.post('/api/search/warn', async (req, res) => {
+  const { query, filters = {} } = req.body;
+
+  console.log(`[WARN Search] Received query: "${query}"`);
+
+  try {
+    const results = await searchWARN(query, filters);
+    res.json(results);
+  } catch (error) {
+    console.error('[WARN Search] Error:', error);
+    res.status(500).json({ error: 'WARN search failed', details: error.message });
+  }
+});
+
+// --- SEARCH IMPLEMENTATION FUNCTIONS ---
+
+async function performLiveSearch(query, sources, filters) {
+  const results = {
+    query,
+    sources,
+    timestamp: new Date().toISOString(),
+    results: {}
+  };
+
+  const searchPromises = [];
+
+  if (sources.includes('linkedin')) {
+    searchPromises.push(searchLinkedIn(query, filters).then(data => {
+      results.results.linkedin = data;
+    }));
+  }
+
+  if (sources.includes('google')) {
+    searchPromises.push(searchGoogle(query, filters).then(data => {
+      results.results.google = data;
+    }));
+  }
+
+  if (sources.includes('warn')) {
+    searchPromises.push(searchWARN(query, filters).then(data => {
+      results.results.warn = data;
+    }));
+  }
+
+  await Promise.allSettled(searchPromises);
+  return results;
+}
+
+async function searchLinkedIn(query, filters) {
+  // For now, return enhanced mock data that simulates real LinkedIn scraping
+  const mockContacts = [
+    {
+      id: 'li_001',
+      name: 'Sarah Johnson',
+      title: 'Senior Software Engineer',
+      company: 'TechCorp Inc',
+      location: 'San Francisco, CA',
+      email: 'sarah.johnson@techcorp.com',
+      linkedin_url: 'https://linkedin.com/in/sarah-johnson-001',
+      source: 'linkedin',
+      last_updated: new Date().toISOString(),
+      match_score: 0.95,
+      keywords: ['software engineer', 'python', 'react', 'aws']
+    },
+    {
+      id: 'li_002',
+      name: 'Michael Chen',
+      title: 'Product Manager',
+      company: 'Innovation Labs',
+      location: 'Palo Alto, CA',
+      email: 'michael.chen@innovationlabs.com',
+      linkedin_url: 'https://linkedin.com/in/michael-chen-002',
+      source: 'linkedin',
+      last_updated: new Date().toISOString(),
+      match_score: 0.88,
+      keywords: ['product management', 'agile', 'user experience']
+    },
+    {
+      id: 'li_003',
+      name: 'Emily Rodriguez',
+      title: 'Data Scientist',
+      company: 'DataFlow Solutions',
+      location: 'Los Angeles, CA',
+      email: 'emily.rodriguez@dataflow.com',
+      linkedin_url: 'https://linkedin.com/in/emily-rodriguez-003',
+      source: 'linkedin',
+      last_updated: new Date().toISOString(),
+      match_score: 0.92,
+      keywords: ['data science', 'machine learning', 'python', 'sql']
+    }
+  ];
+
+  // Filter based on query and filters
+  return mockContacts.filter(contact => {
+    const searchText = `${contact.name} ${contact.title} ${contact.company} ${contact.keywords.join(' ')}`.toLowerCase();
+    return searchText.includes(query.toLowerCase());
+  });
+}
+
+async function searchGoogle(query, filters) {
+  // Enhanced mock data for Google search results
+  const mockResults = [
+    {
+      id: 'google_001',
+      title: 'TechCorp Inc - Software Engineering Opportunities',
+      url: 'https://techcorp.com/careers',
+      snippet: 'Leading technology company seeking experienced software engineers...',
+      company: 'TechCorp Inc',
+      location: 'San Francisco, CA',
+      source: 'google',
+      last_updated: new Date().toISOString(),
+      match_score: 0.87
+    },
+    {
+      id: 'google_002',
+      title: 'Innovation Labs - Product Management Roles',
+      url: 'https://innovationlabs.com/jobs',
+      snippet: 'Innovation Labs is hiring product managers to drive our next generation...',
+      company: 'Innovation Labs',
+      location: 'Palo Alto, CA',
+      source: 'google',
+      last_updated: new Date().toISOString(),
+      match_score: 0.91
+    },
+    {
+      id: 'google_003',
+      title: 'DataFlow Solutions - Data Science Positions',
+      url: 'https://dataflow.com/opportunities',
+      snippet: 'DataFlow Solutions is expanding its data science team...',
+      company: 'DataFlow Solutions',
+      location: 'Los Angeles, CA',
+      source: 'google',
+      last_updated: new Date().toISOString(),
+      match_score: 0.89
+    }
+  ];
+
+  return mockResults.filter(result => {
+    const searchText = `${result.title} ${result.snippet} ${result.company}`.toLowerCase();
+    return searchText.includes(query.toLowerCase());
+  });
+}
+
+async function searchWARN(query, filters) {
+  // Enhanced mock data for WARN notices
+  const mockWARNNotices = [
+    {
+      id: 'warn_001',
+      company_name: 'TechCorp Inc',
+      received_date: '2024-01-15',
+      employee_count: 150,
+      location: 'San Francisco, CA',
+      industry: 'Technology',
+      source: 'warn',
+      last_updated: new Date().toISOString(),
+      match_score: 0.85
+    },
+    {
+      id: 'warn_002',
+      company_name: 'Innovation Labs',
+      received_date: '2024-01-10',
+      employee_count: 75,
+      location: 'Palo Alto, CA',
+      industry: 'Technology',
+      source: 'warn',
+      last_updated: new Date().toISOString(),
+      match_score: 0.92
+    },
+    {
+      id: 'warn_003',
+      company_name: 'DataFlow Solutions',
+      received_date: '2024-01-05',
+      employee_count: 45,
+      location: 'Los Angeles, CA',
+      industry: 'Data & Analytics',
+      source: 'warn',
+      last_updated: new Date().toISOString(),
+      match_score: 0.88
+    }
+  ];
+
+  return mockWARNNotices.filter(notice => {
+    const searchText = `${notice.company_name} ${notice.industry} ${notice.location}`.toLowerCase();
+    return searchText.includes(query.toLowerCase());
+  });
+}
+
 // Start the server
 app.listen(port, '0.0.0.0', () => {
   console.log(`🚀 VLTRN Production Server is online and listening on port ${port}`);

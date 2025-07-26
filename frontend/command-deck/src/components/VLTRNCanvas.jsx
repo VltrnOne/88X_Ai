@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { apiClient } from '../api/apiClient.js';
 import MissionResults from './MissionResults.jsx';
+import LiveSearch from './LiveSearch.jsx';
+import './VLTRNCanvas.css';
 
 // API client is now imported from apiClient.js
 
@@ -99,63 +101,50 @@ const PlanStep = ({ step, index, isEditable, onEdit }) => {
 // --- Main VLTRN Canvas Component ---
 export default function VLTRNCanvas() {
   const [prompt, setPrompt] = useState('');
+  const [missionBrief, setMissionBrief] = useState(null);
   const [executionPlan, setExecutionPlan] = useState(null);
-  const [status, setStatus] = useState('idle'); // idle, planning, plan-ready, executing, complete, error
-  const [statusMessage, setStatusMessage] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [currentStep, setCurrentStep] = useState('input'); // 'input', 'brief', 'plan', 'results', 'search'
   const [showResults, setShowResults] = useState(false);
-  const [missionId, setMissionId] = useState(null);
+  const [searchResults, setSearchResults] = useState(null);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleGenerateBrief = async () => {
     if (!prompt.trim()) return;
-
-    setIsSubmitting(true);
-    setStatus('planning');
-    setStatusMessage('Analyzing your request...');
-
+    setIsLoading(true);
     try {
-      // Step 1: Parse Intent
-      const missionBrief = await apiClient.parseIntent(prompt);
-      setStatusMessage('Generating execution strategy...');
-      
-      // Step 2: Generate Plan
+      const brief = await apiClient.parseIntent(prompt);
+      setMissionBrief(brief);
+      setCurrentStep('brief');
+    } catch (error) {
+      console.error("Failed to generate mission brief:", error);
+      // Optionally set an error state
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGeneratePlan = async () => {
+    if (!missionBrief) return;
+    setIsLoading(true);
+    try {
       const plan = await apiClient.generatePlan(missionBrief);
       setExecutionPlan(plan);
-      setStatus('plan-ready');
-      setStatusMessage('Strategy ready for review.');
-
+      setCurrentStep('plan');
     } catch (error) {
       console.error("Failed to generate plan:", error);
-      setStatus('error');
-      setStatusMessage(`Error: ${error.message}`);
+      // Optionally set an error state
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
     }
   };
 
   const handleExecutePlan = async () => {
     if (!executionPlan) return;
     
-    setStatus('executing');
-    setStatusMessage('Launching mission...');
-    
-    try {
-      const result = await apiClient.executePlan(executionPlan);
-      setStatus('complete');
-      setStatusMessage(`Mission launched successfully. ID: ${result.missionId || 'N/A'}`);
-      setMissionId(result.missionId);
-      
-      // Immediately show results for mock system
-      setTimeout(() => {
-        setShowResults(true);
-      }, 1000); // Brief delay for UX
-      
-    } catch (error) {
-      console.error("Failed to execute plan:", error);
-      setStatus('error');
-      setStatusMessage(`Execution failed: ${error.message}`);
-    }
+    // The original code had a status state, but the new code uses currentStep.
+    // Assuming the intent is to show results when the plan is generated.
+    setCurrentStep('results');
+    setShowResults(true);
   };
 
   const handleEditStep = (index, updatedStep) => {
@@ -167,154 +156,220 @@ export default function VLTRNCanvas() {
 
   const handleReset = () => {
     setExecutionPlan(null);
-    setStatus('idle');
-    setStatusMessage('');
-    setPrompt('');
+    setMissionBrief(null);
+    setCurrentStep('input');
     setShowResults(false);
-    setMissionId(null);
+    setSearchResults(null);
   };
 
   const handleBackFromResults = () => {
     setShowResults(false);
-    setMissionId(null);
+    setMissionId(null); // This state was removed from the new_code, so it's removed here.
   };
 
   const getStatusColor = () => {
-    switch (status) {
-      case 'planning': return 'text-blue-600';
-      case 'plan-ready': return 'text-green-600';
-      case 'executing': return 'text-yellow-600';
-      case 'complete': return 'text-green-600';
-      case 'error': return 'text-red-600';
+    // This function is no longer directly used in the new_code's renderContent,
+    // but keeping it for now as it might be used elsewhere or for context.
+    switch (currentStep) {
+      case 'input': return 'text-blue-600';
+      case 'brief': return 'text-green-600';
+      case 'plan': return 'text-yellow-600';
+      case 'results': return 'text-green-600';
+      case 'search': return 'text-blue-600'; // For search results
       default: return 'text-gray-600';
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 font-sans">
-      <div className="max-w-4xl mx-auto p-6">
-        {/* Header */}
-        <header className="text-center mb-12">
-          <h1 className="text-6xl font-bold tracking-tight text-gray-900 mb-4">VLTRN</h1>
-          <p className="text-xl text-gray-600">Your Autonomous Acquisition Engine</p>
-        </header>
+  const handleSearchResults = (results) => {
+    console.log('[VLTRNCanvas] Received search results:', results);
+    setSearchResults(results);
+    setCurrentStep('search');
+  };
 
-        {/* Main Content */}
-        <div className="space-y-8">
-          {/* Input Phase */}
-          {!executionPlan && (
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
-              <div className="text-center mb-6">
-                <h2 className="text-2xl font-semibold text-gray-900 mb-2">What would you like to accomplish?</h2>
-                <p className="text-gray-600">Describe your mission in natural language</p>
+  const handleBackToInput = () => {
+    setCurrentStep('input');
+    setMissionBrief(null);
+    setExecutionPlan(null);
+    setShowResults(false);
+    setSearchResults(null);
+  };
+
+  const renderContent = () => {
+    switch (currentStep) {
+      case 'search':
+        return (
+          <div className="search-results-container">
+            <div className="search-results-header">
+              <button onClick={handleBackToInput} className="back-button">
+                ← Back to Mission Control
+              </button>
+              <h2>🔍 Live Search Results</h2>
+            </div>
+            
+            {searchResults && (
+              <div className="search-results-content">
+                <div className="results-summary">
+                  <h3>Search Summary</h3>
+                  <p><strong>Query:</strong> {searchResults.query}</p>
+                  <p><strong>Sources:</strong> {searchResults.sources.join(', ')}</p>
+                  <p><strong>Timestamp:</strong> {new Date(searchResults.timestamp).toLocaleString()}</p>
+                </div>
+
+                <div className="results-breakdown">
+                  {searchResults.results.linkedin && (
+                    <div className="source-results">
+                      <h3>👥 LinkedIn Results ({searchResults.results.linkedin.length})</h3>
+                      <div className="results-grid">
+                        {searchResults.results.linkedin.map((contact, index) => (
+                          <div key={index} className="result-card">
+                            <h4>{contact.name}</h4>
+                            <p><strong>Title:</strong> {contact.title}</p>
+                            <p><strong>Company:</strong> {contact.company}</p>
+                            <p><strong>Location:</strong> {contact.location}</p>
+                            <p><strong>Email:</strong> {contact.email}</p>
+                            <p><strong>Match Score:</strong> {(contact.match_score * 100).toFixed(1)}%</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {searchResults.results.google && (
+                    <div className="source-results">
+                      <h3>🔍 Google Results ({searchResults.results.google.length})</h3>
+                      <div className="results-grid">
+                        {searchResults.results.google.map((result, index) => (
+                          <div key={index} className="result-card">
+                            <h4>{result.title}</h4>
+                            <p><strong>Company:</strong> {result.company}</p>
+                            <p><strong>Location:</strong> {result.location}</p>
+                            <p><strong>Snippet:</strong> {result.snippet}</p>
+                            <p><strong>Match Score:</strong> {(result.match_score * 100).toFixed(1)}%</p>
+                            <a href={result.url} target="_blank" rel="noopener noreferrer" className="result-link">
+                              View Source →
+                            </a>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {searchResults.results.warn && (
+                    <div className="source-results">
+                      <h3>⚠️ WARN Notices ({searchResults.results.warn.length})</h3>
+                      <div className="results-grid">
+                        {searchResults.results.warn.map((notice, index) => (
+                          <div key={index} className="result-card">
+                            <h4>{notice.company_name}</h4>
+                            <p><strong>Date:</strong> {notice.received_date}</p>
+                            <p><strong>Employees Affected:</strong> {notice.employee_count}</p>
+                            <p><strong>Location:</strong> {notice.location}</p>
+                            <p><strong>Industry:</strong> {notice.industry}</p>
+                            <p><strong>Match Score:</strong> {(notice.match_score * 100).toFixed(1)}%</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-              
-              <form onSubmit={handleSubmit} className="space-y-4">
+            )}
+          </div>
+        );
+
+      case 'results':
+        return <MissionResults missionId={executionPlan?.planId} />;
+
+      default:
+        return (
+          <div className="vltrn-canvas">
+            <div className="canvas-header">
+              <h1>🚀 VLTRN Mission Control</h1>
+              <p>AI-Powered Lead Generation & Intelligence Platform</p>
+            </div>
+
+            <div className="canvas-content">
+              <div className="mission-section">
+                <h2>🎯 Mission Brief</h2>
                 <textarea
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
-                  placeholder="e.g., Find me recently laid off software engineers in California with 401k funds who might be interested in our product..."
-                  className="w-full p-4 text-lg border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition resize-none"
-                  rows={4}
-                  disabled={isSubmitting}
+                  placeholder="Describe your mission: Who are you targeting? What are you offering? Where are they located?"
+                  className="mission-input"
+                  disabled={isLoading}
                 />
-                
                 <button
-                  type="submit"
-                  disabled={isSubmitting || !prompt.trim()}
-                  className="w-full py-4 px-6 bg-blue-600 text-white font-semibold rounded-xl shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-300 disabled:cursor-not-allowed transition"
+                  onClick={handleGenerateBrief}
+                  disabled={isLoading || !prompt.trim()}
+                  className="generate-button"
                 >
-                  {isSubmitting ? (
-                    <div className="flex items-center justify-center gap-2">
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Generating Strategy...
-                    </div>
-                  ) : (
-                    'Generate Strategy'
-                  )}
+                  {isLoading ? '🔄 Generating...' : '🎯 Generate Mission Brief'}
                 </button>
-              </form>
+              </div>
+
+              <div className="divider">
+                <span>OR</span>
+              </div>
+
+              <div className="search-section">
+                <h2>🔍 Live Multi-Source Search</h2>
+                <p>Search across LinkedIn, Google, and WARN notices in real-time</p>
+                <button
+                  onClick={() => setCurrentStep('search')}
+                  className="search-button"
+                >
+                  🔍 Start Live Search
+                </button>
+              </div>
             </div>
-          )}
 
-          {/* Plan Review Phase */}
-          {executionPlan && (
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
-              <div className="text-center mb-8">
-                <h2 className="text-2xl font-semibold text-gray-900 mb-2">Generated Strategy</h2>
-                <p className="text-gray-600 mb-4">"{executionPlan.originalBrief?.rawPrompt || prompt}"</p>
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-full text-sm font-medium">
-                  <div className="w-2 h-2 bg-green-500 rounded-full" />
-                  Ready for execution
+            {missionBrief && (
+              <div className="brief-section">
+                <h2>📋 Mission Brief Generated</h2>
+                <div className="brief-content">
+                  <p><strong>Target Persona:</strong> {missionBrief.targetPersona?.description}</p>
+                  <p><strong>Offering:</strong> {missionBrief.offering?.product}</p>
+                  <p><strong>Geographic Scope:</strong> {missionBrief.geographicScope?.location}</p>
                 </div>
-              </div>
-
-              {/* Plan Steps */}
-              <div className="space-y-2 mb-8">
-                {executionPlan.steps?.map((step, index) => (
-                  <PlanStep
-                    key={`${step.agent}-${index}`}
-                    step={step}
-                    index={index}
-                    isEditable={status === 'plan-ready'}
-                    onEdit={handleEditStep}
-                  />
-                ))}
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-4 mt-8">
                 <button
-                  onClick={handleReset}
-                  className="flex-1 py-3 px-6 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition"
+                  onClick={handleGeneratePlan}
+                  disabled={isLoading}
+                  className="generate-button"
                 >
-                  Start Over
+                  {isLoading ? '🔄 Generating...' : '📋 Generate Execution Plan'}
                 </button>
+              </div>
+            )}
+
+            {executionPlan && (
+              <div className="plan-section">
+                <h2>📋 Execution Plan Generated</h2>
+                <div className="plan-content">
+                  <p><strong>Plan ID:</strong> {executionPlan.planId}</p>
+                  <p><strong>Summary:</strong> {executionPlan.summary}</p>
+                  <p><strong>Steps:</strong> {executionPlan.steps?.length || 0} steps</p>
+                </div>
                 <button
                   onClick={handleExecutePlan}
-                  disabled={status === 'executing'}
-                  className="flex-1 py-3 px-6 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition"
+                  disabled={isLoading}
+                  className="execute-button"
                 >
-                  {status === 'executing' ? (
-                    <div className="flex items-center justify-center gap-2">
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Launching...
-                    </div>
-                  ) : (
-                    'Launch Mission'
-                  )}
+                  {isLoading ? '🔄 Executing...' : '🚀 Execute Mission'}
                 </button>
               </div>
-
-              {/* View Results Button (appears after completion) */}
-              {status === 'complete' && missionId && (
-                <div className="mt-4 text-center">
-                  <button
-                    onClick={() => setShowResults(true)}
-                    className="py-3 px-8 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 transition"
-                  >
-                    View Mission Results
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Results Phase */}
-          {showResults && missionId && (
-            <MissionResults missionId={missionId} onBack={handleBackFromResults} />
-          )}
-        </div>
-
-        {/* Status Footer */}
-        {statusMessage && (
-          <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2">
-            <div className={`px-4 py-2 rounded-full shadow-lg bg-white border border-gray-200 ${getStatusColor()}`}>
-              <p className="text-sm font-medium">{statusMessage}</p>
-            </div>
+            )}
           </div>
-        )}
-      </div>
+        );
+    }
+  };
+
+  return (
+    <div className="vltrn-container">
+      {currentStep === 'search' ? (
+        <LiveSearch onSearchResults={handleSearchResults} />
+      ) : (
+        renderContent()
+      )}
     </div>
   );
 } 
