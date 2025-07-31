@@ -47,12 +47,10 @@ Please provide:
 
 Format the response as structured data for marketing automation.`;
 
-    // Prepare the payload for agenticflow.ai
+    // Prepare the payload for agenticflow.ai using the correct workflow endpoint
     const payload = {
-      teamspace_id: AGENTICFLOW_TEAMSPACE_ID,
       prompt: prompt,
-      // Note: The exact agent_id/workflow_id needs to be determined from your agenticflow.ai dashboard
-      agent_id: 'AudienceAnalyst_v1', // This will need to be updated with your actual agent ID
+      agent_id: 'f50ab369-f7de-4521-835e-6cf2dceafe06', // Correct Agent ID from dashboard
       metadata: {
         source: 'vltrn-inbound-orchestrator',
         keywords: keywords,
@@ -62,8 +60,8 @@ Format the response as structured data for marketing automation.`;
 
     console.log('Initiating agent run with payload:', JSON.stringify(payload, null, 2));
 
-    // Make the API call to agenticflow.ai
-    const response = await agenticFlowClient.post('/runs', payload);
+    // Make the API call to agenticflow.ai using the correct endpoint structure
+    const response = await agenticFlowClient.post(`/workspaces/${AGENTICFLOW_TEAMSPACE_ID}/workflows`, payload);
     
     console.log('Agent run initiated successfully:', response.data);
     
@@ -91,7 +89,7 @@ app.get('/api/inbound/run-status/:runId', async (req, res) => {
   const { runId } = req.params;
   
   try {
-    const response = await agenticFlowClient.get(`/runs/${runId}`);
+    const response = await agenticFlowClient.get(`/workspaces/${AGENTICFLOW_TEAMSPACE_ID}/workflows/${runId}`);
     
     res.json({
       run_id: runId,
@@ -117,7 +115,7 @@ app.get('/api/inbound/run-results/:runId', async (req, res) => {
   const { runId } = req.params;
   
   try {
-    const response = await agenticFlowClient.get(`/runs/${runId}/results`);
+    const response = await agenticFlowClient.get(`/workspaces/${AGENTICFLOW_TEAMSPACE_ID}/workflows/${runId}/results`);
     
     res.json({
       run_id: runId,
