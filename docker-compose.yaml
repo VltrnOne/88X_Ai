@@ -94,6 +94,16 @@ services:
         condition: service_healthy
     restart: always
 
+  # ──────────── Inbound Orchestrator Service ────────────
+  inbound-orchestrator:
+    build:
+      context: ./inbound-orchestrator
+    ports:
+      - "8083:8083"
+    env_file:
+      - ./inbound-orchestrator/.env
+    restart: always
+
   # --- New Python Selenium Agent ---
   scout-selenium-py:
     build: ./agents/scout-selenium-py
