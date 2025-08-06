@@ -5,6 +5,13 @@ node_modules/
 !package.json
 !package-lock.json
 
+# Sensitive files with API keys and secrets
+kubernetes/vltrn-secrets.yaml
+deploy-production.sh
+.env.production
+*.env
+env.example
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
