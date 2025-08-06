@@ -1,143 +1,66 @@
 require('dotenv').config();
 const express = require('express');
-const axios = require('axios');
+const WebSocket = require('ws');
 
 const app = express();
 app.use(express.json());
 
 const AGENTICFLOW_API_KEY = process.env.AGENTICFLOW_API_KEY;
 const AGENTICFLOW_TEAMSPACE_ID = process.env.AGENTICFLOW_TEAMSPACE_ID;
-const AGENTICFLOW_BASE_URL = 'https://api.pixelml.com/agentic';
 
-// API client configuration
-const agenticFlowClient = axios.create({
-  baseURL: AGENTICFLOW_BASE_URL,
-  headers: {
-    'Authorization': `Bearer ${AGENTICFLOW_API_KEY}`,
-    'Content-Type': 'application/json'
-  }
-});
+// Try a different WebSocket endpoint pattern
+const WEBSOCKET_URL = `wss://api.agenticflow.ai/ws/agent/run?api_key=${AGENTICFLOW_API_KEY}`;
 
-/**
- * Endpoint to start the Audience Analyst agent run.
- * Expects a POST request with a body like: { "keywords": ["kw1", "kw2"] }
- */
-app.post('/api/inbound/start-analysis', async (req, res) => {
-  const { keywords } = req.body;
-  
-  if (!keywords || !Array.isArray(keywords) || keywords.length === 0) {
-    return res.status(400).json({
-      error: 'Invalid request. keywords array is required.'
-    });
+app.post('/api/inbound/start-analysis', (req, res) => {
+  const { keywords, agentId } = req.body;
+
+  if (!keywords || !agentId) {
+    return res.status(400).json({ error: 'Keywords and agentId are required.' });
   }
 
-  try {
-    // Construct the prompt for the Audience Analyst agent
-    const prompt = `Analyze the following keywords to identify the target audience for inbound marketing:
+  console.log('Initiating WebSocket connection with API key authentication...');
+  console.log('WebSocket URL:', WEBSOCKET_URL);
+  console.log('API Key length:', AGENTICFLOW_API_KEY ? AGENTICFLOW_API_KEY.length : 0);
 
-Keywords: ${keywords.join(', ')}
+  // The 'ws' library does not reliably pass custom headers through all infrastructure.
+  // Authentication is now handled via the query parameter in the URL.
+  const ws = new WebSocket(WEBSOCKET_URL);
 
-Please provide:
-1. Target audience demographics
-2. Pain points and challenges
-3. Content preferences and consumption habits
-4. Decision-making factors
-5. Recommended marketing channels
-6. Content strategy recommendations
+  ws.on('open', () => {
+    console.log('WebSocket connection established. Sending RUN event...');
 
-Format the response as structured data for marketing automation.`;
-
-    // Prepare the payload for agenticflow.ai using the correct workflow endpoint
     const payload = {
-      prompt: prompt,
-      agent_id: 'f50ab369-f7de-4521-835e-6cf2dceafe06', // Correct Agent ID from dashboard
-      metadata: {
-        source: 'vltrn-inbound-orchestrator',
-        keywords: keywords,
-        analysis_type: 'audience_analysis'
+      event: 'RUN',
+      data: {
+        input: keywords.join('\n'),
+        agentId: agentId,
+        workspaceId: AGENTICFLOW_TEAMSPACE_ID,
+        threadId: null
       }
     };
 
-    console.log('Initiating agent run with payload:', JSON.stringify(payload, null, 2));
+    console.log('Sending payload:', JSON.stringify(payload, null, 2));
+    ws.send(JSON.stringify(payload));
 
-    // Make the API call to agenticflow.ai using the correct endpoint structure
-    const response = await agenticFlowClient.post(`/workspaces/${AGENTICFLOW_TEAMSPACE_ID}/workflows`, payload);
-    
-    console.log('Agent run initiated successfully:', response.data);
-    
-    res.status(202).json({
-      message: 'Audience analysis initiated successfully',
-      run_id: response.data.id,
-      status: response.data.status,
-      estimated_completion: response.data.estimated_completion || 'Unknown'
+    res.status(202).json({ 
+      message: 'Audience analysis run initiated successfully via WebSocket.'
     });
+  });
 
-  } catch (error) {
-    console.error('Failed to initiate agent run:', error.response?.data || error.message);
-    
-    res.status(500).json({
-      error: 'Failed to initiate agent run',
-      details: error.response?.data || error.message
-    });
-  }
-});
+  ws.on('message', (data) => {
+    console.log('Received message from AgenticFlow:', data.toString());
+  });
 
-/**
- * Endpoint to check the status of a running agent
- */
-app.get('/api/inbound/run-status/:runId', async (req, res) => {
-  const { runId } = req.params;
-  
-  try {
-    const response = await agenticFlowClient.get(`/workspaces/${AGENTICFLOW_TEAMSPACE_ID}/workflows/${runId}`);
-    
-    res.json({
-      run_id: runId,
-      status: response.data.status,
-      result: response.data.result,
-      progress: response.data.progress
-    });
-    
-  } catch (error) {
-    console.error('Failed to get run status:', error.response?.data || error.message);
-    
-    res.status(500).json({
-      error: 'Failed to get run status',
-      details: error.response?.data || error.message
-    });
-  }
-});
+  ws.on('close', (code, reason) => {
+    console.log('WebSocket connection closed. Code:', code, 'Reason:', reason);
+  });
 
-/**
- * Endpoint to retrieve completed agent results
- */
-app.get('/api/inbound/run-results/:runId', async (req, res) => {
-  const { runId } = req.params;
-  
-  try {
-    const response = await agenticFlowClient.get(`/workspaces/${AGENTICFLOW_TEAMSPACE_ID}/workflows/${runId}/results`);
-    
-    res.json({
-      run_id: runId,
-      completed_at: response.data.completed_at,
-      analysis_results: response.data.results,
-      metadata: response.data.metadata
-    });
-    
-  } catch (error) {
-    console.error('Failed to get run results:', error.response?.data || error.message);
-    
-    res.status(500).json({
-      error: 'Failed to get run results',
-      details: error.response?.data || error.message
-    });
-  }
+  ws.on('error', (error) => {
+    console.error('WebSocket error:', error.message);
+  });
 });
 
 const PORT = process.env.PORT || 8083;
 app.listen(PORT, () => {
-  console.log(`Inbound Orchestrator service running on port ${PORT}`);
-  console.log(`AgenticFlow API Base URL: ${AGENTICFLOW_BASE_URL}`);
-  console.log(`Teamspace ID: ${AGENTICFLOW_TEAMSPACE_ID ? 'Configured' : 'Missing'}`);
-  console.log(`API Key: ${AGENTICFLOW_API_KEY ? 'Configured' : 'Missing'}`);
+  console.log(`Inbound Orchestrator (WebSocket) listening on port ${PORT}`);
 }); 
